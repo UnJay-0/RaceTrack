@@ -26,50 +26,61 @@ def obstacle_ahead_penalty(track, x, y, vx, vy):
 
     vel_len = math.sqrt(vx * vx + vy * vy)
 
-    for dx in range(-r, r + 1):
-        for dy in range(-r, r + 1):
+    if vel_len == 0:
+        return 0
 
-            if dx*dx + dy*dy > r*r:
-                continue
+    # normalize velocity direction
+    velx = vx / vel_len
+    vely = vy / vel_len
 
-            nx = x + dx
-            ny = y + dy
+    # number of rays
+    NUM_RAYS = 64
 
-            if nx < 0 or ny < 0 or nx >= width or ny >= height:
-                continue
+    for i in range(NUM_RAYS):
+
+        angle = (2 * math.pi * i) / NUM_RAYS
+
+        dirx = math.cos(angle)
+        diry = math.sin(angle)
+
+        # ignore rays too far behind
+        forward = dirx * velx + diry * vely
+
+        if forward < -0.2:
+            continue
+
+        # stronger weight for forward rays
+        directional_weight = max(0, forward)
+
+        # march along the ray
+        for step in range(1, r + 1):
+
+            nx = round(x + dirx * step)
+            ny = round(y + diry * step)
+
+            if (
+                nx < 0 or ny < 0 or
+                nx >= width or ny >= height
+            ):
+                break
 
             cell = get_cell(track, nx, ny)
 
-            dist = math.sqrt(dx*dx + dy*dy)
-
-            if dist == 0:
-                continue
-
-            #direction to the analyzed point
-            dirx = dx / dist
-            diry = dy / dist
-
-            #how far in front is the cell
-            forward = (
-                (dirx * vx + diry * vy) / vel_len
-            )
-
-            #ignore the back 
-            if forward < -0.2:
-                continue
-
-            #big weight for obstacles right in front
-            directional_weight = max(0, forward)
-
-            weight = directional_weight / (dist + 1)
+            weight = directional_weight / (step + 1)
 
             if cell == 'O':
+
                 penalty += 120 * weight
 
+                # STOP ray after obstacle
+                break
+
             elif cell == 'T':
+
                 penalty -= 0.4 * weight
 
             elif cell == 'G':
+
                 penalty -= 0.15 * weight
 
     return penalty
@@ -187,17 +198,46 @@ def valid_move(track, x0, y0, x1, y1):
 
     return True
 
+def clamp(v):
+    return max(-8, min(8, v))
 
-def generate_moves(state, track):
+def generate_moves(state):
 
     x, y, vx, vy = state
+
     moves = []
+
+    MAX_SPEED = 8
 
     for ax in [-1, 0, 1]:
         for ay in [-1, 0, 1]:
 
-            nvx = vx + ax
-            nvy = vy + ay
+            nvx = clamp(vx + ax)
+            nvy = clamp(vy + ay)
+
+            # limit speed
+            if abs(nvx) > MAX_SPEED:
+                continue
+
+            if abs(nvy) > MAX_SPEED:
+                continue
+
+            old_speed = math.sqrt(vx * vx + vy * vy)
+
+            # avoid violent reversals
+            if old_speed > 1:
+
+                dot = vx * nvx + vy * nvy
+
+                # cosine-like directional check
+                directional_ratio = dot / (
+                    old_speed *
+                    (math.sqrt(nvx * nvx + nvy * nvy) + 1e-6)
+                )
+
+                # forbid near-180 turns
+                if directional_ratio < -0.3:
+                    continue
 
             nx = x + nvx
             ny = y + nvy
@@ -221,7 +261,7 @@ def beam_search_step(
 
         x, y, vx, vy = state
 
-        for nx, ny, nvx, nvy in generate_moves(state, track):
+        for nx, ny, nvx, nvy in generate_moves(state):
 
             if not valid_move(track, x, y, nx, ny):
                 continue
@@ -232,6 +272,18 @@ def beam_search_step(
 
             dist = distance_to_finish(nx, ny, finishes)
             speed = math.sqrt(nvx * nvx + nvy * nvy)
+
+            turn_penalty = 0
+
+            old_speed = math.sqrt(vx * vx + vy * vy)
+
+            if old_speed > 0 and speed > 0:
+
+                dot = vx * nvx + vy * nvy
+
+                cosine = dot / (old_speed * speed + 1e-6)
+
+                turn_penalty = 8 * (1 - cosine)
 
             obstacle_penalty = obstacle_ahead_penalty(track, nx, ny, nvx, nvy)
             wall_penalty = wall_proximity_penalty(track, nx, ny)
@@ -245,8 +297,19 @@ def beam_search_step(
                 0.15 * speed +
                 obstacle_penalty +
                 0.4 * wall_penalty +
+                turn_penalty +
                 final_bonus -
-                completion_force + + visit_penalty
+                completion_force +
+                visit_penalty
+            )
+
+            Q = 2 # quantization factor to reduce state space
+
+            new_state = (
+                nx,
+                ny,
+                (nvx // Q) * Q,
+                (nvy // Q) * Q
             )
 
             if new_state in visited and visited[new_state] <= total_score:
@@ -257,6 +320,17 @@ def beam_search_step(
             position_visits[(nx, ny)] = (
                 position_visits.get((nx, ny), 0) + 1
             )
+
+            print("STATE DEBUG:")
+            print("pos:", nx, ny)
+            print("dist:", dist)
+            print("speed:", speed)
+            print("obstacle:", obstacle_penalty)
+            print("wall:", wall_penalty)
+            print("turn:", turn_penalty)
+            print("visit:", visit_penalty)
+            print("TOTAL:", total_score)
+            print("---")
 
             candidates.append((total_score, new_state, state))
 
@@ -302,6 +376,8 @@ def solve(track):
 
     position_visits = {}
 
+    debug_file = open("debug_states.txt", "w")   # <<< MOVE HERE
+
     for step in range(max_steps):
 
         result = beam_search_step(
@@ -313,7 +389,18 @@ def solve(track):
             position_visits
         )
 
+        debug_file.write(
+            f"STEP {step} | beam_size={len(beam)} | visited={len(visited)}\n"
+        )
+
+        for s in beam[:10]:
+            debug_file.write(f"{s}\n")
+
+        debug_file.write("\n")
+        debug_file.flush()
+
         if not result:
+            debug_file.close()
             return reconstruct(beam[0], parent_map)
 
         beam, parents = result
@@ -321,8 +408,10 @@ def solve(track):
 
         for x, y, vx, vy in beam:
             if (x, y) in finishes:
+                debug_file.close()
                 return reconstruct((x, y, vx, vy), parent_map)
 
+    debug_file.close()
     return reconstruct(beam[0], parent_map)
 
 
