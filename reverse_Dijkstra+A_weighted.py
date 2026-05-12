@@ -95,6 +95,29 @@ def supercover_line(x0, y0, x1, y1):
     return cells
 
 
+def terrain_cost(cell):
+    if cell == 'T':
+        return 1.0  
+    if cell == 'G':
+        return 2.0   
+    if cell == 'S':
+        return 1.0
+    if cell == 'F':
+        return 1.0
+    return 1.0
+
+
+def terrain_factor(cell):
+    if cell == 'G':
+        return 0.5   
+    if cell == 'T':
+        return 2.0
+    if cell == 'S':
+        return 1.0
+    if cell == 'F':
+        return 1.0
+    return 1.0
+
 def valid_move(track, x0, y0, x1, y1):
 
     height = len(track)
@@ -227,31 +250,31 @@ def reverse_dijkstra(track, finishes):
     return dist
 
 
-def generate_moves(state):
+def generate_moves(track, state):
 
     x, y, vx, vy = state
+    cell = get_cell(track, x, y)
+
+    factor = terrain_factor(cell)
 
     moves = []
 
     for ax in [-1, 0, 1]:
         for ay in [-1, 0, 1]:
 
-            nvx = vx + ax
-            nvy = vy + ay
+            nvx = vx + ax * factor
+            nvy = vy + ay * factor
 
-            #speed cap
-            if abs(nvx) > MAX_SPEED:
-                continue
+            nvx = int(round(nvx))
+            nvy = int(round(nvy))
 
-            if abs(nvy) > MAX_SPEED:
+            if abs(nvx) > MAX_SPEED or abs(nvy) > MAX_SPEED:
                 continue
 
             nx = x + nvx
             ny = y + nvy
 
-            moves.append(
-                (nx, ny, nvx, nvy)
-            )
+            moves.append((nx, ny, nvx, nvy))
 
     return moves
 
@@ -283,6 +306,14 @@ def reconstruct(state, parent_map):
 
     return path
 
+def move_cost(track, x0, y0, x1, y1):
+    path = supercover_line(x0, y0, x1, y1)
+
+    cost = 0.0
+    for x, y in path:
+        cost += terrain_cost(get_cell(track, x, y))
+
+    return cost
 
 def weighted_astar(track):
 
@@ -375,7 +406,7 @@ def weighted_astar(track):
                 parent
             )
 
-        for next_state in generate_moves(state):
+        for next_state in generate_moves(track, state):
 
             nx, ny, nvx, nvy = next_state
 
@@ -388,7 +419,7 @@ def weighted_astar(track):
             ):
                 continue
 
-            tentative_g = g_score[state] + 1
+            tentative_g = g_score[state] + move_cost(track, x, y, nx, ny)
 
             if (
                 next_state not in g_score
