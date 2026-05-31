@@ -1,7 +1,6 @@
-import sys
-import math
 import heapq
-
+import math
+import sys
 
 MAX_SPEED = 8
 WEIGHT = 2.0
@@ -32,17 +31,15 @@ def find_positions(track):
     width = len(track[0])
 
     for row in range(height):
-
         for x in range(width):
-
             cell = track[row][x]
 
             y = height - 1 - row
 
-            if cell == 'S':
+            if cell == "S":
                 start = (x, y)
 
-            elif cell == 'F':
+            elif cell == "F":
                 finishes.append((x, y))
 
     return start, finishes
@@ -70,9 +67,7 @@ def supercover_line(x0, y0, x1, y1):
     iy = 0
 
     while ix < nx or iy < ny:
-
         if (1 + 2 * ix) * ny == (1 + 2 * iy) * nx:
-
             # exact corner crossing
             x += sign_x
             y += sign_y
@@ -81,12 +76,10 @@ def supercover_line(x0, y0, x1, y1):
             iy += 1
 
         elif (1 + 2 * ix) * ny < (1 + 2 * iy) * nx:
-
             x += sign_x
             ix += 1
 
         else:
-
             y += sign_y
             iy += 1
 
@@ -96,27 +89,28 @@ def supercover_line(x0, y0, x1, y1):
 
 
 def terrain_cost(cell):
-    if cell == 'T':
-        return 1.0  
-    if cell == 'G':
-        return 2.0   
-    if cell == 'S':
+    if cell == "T":
         return 1.0
-    if cell == 'F':
+    if cell == "G":
+        return 2.0
+    if cell == "S":
+        return 1.0
+    if cell == "F":
         return 1.0
     return 1.0
 
 
 def terrain_factor(cell):
-    if cell == 'G':
-        return 0.5   
-    if cell == 'T':
+    if cell == "G":
+        return 0.5
+    if cell == "T":
         return 2.0
-    if cell == 'S':
+    if cell == "S":
         return 1.0
-    if cell == 'F':
+    if cell == "F":
         return 1.0
     return 1.0
+
 
 def valid_move(track, x0, y0, x1, y1):
 
@@ -126,26 +120,23 @@ def valid_move(track, x0, y0, x1, y1):
     path = supercover_line(x0, y0, x1, y1)
 
     for x, y in path:
-
         if x < 0 or y < 0:
             return False
 
         if x >= width or y >= height:
             return False
 
-        if get_cell(track, x, y) == 'O':
+        if get_cell(track, x, y) == "O":
             return False
 
-    #forbid touching obstacle corners
+    # forbid touching obstacle corners
     dx_total = x1 - x0
     dy_total = y1 - y0
 
     steps = max(abs(dx_total), abs(dy_total))
 
     if steps > 0:
-
         for i in range(steps + 1):
-
             t = i / steps
 
             px = x0 + dx_total * t
@@ -153,25 +144,21 @@ def valid_move(track, x0, y0, x1, y1):
 
             eps = 1e-9
 
-
     for i in range(len(path) - 1):
-
         xA, yA = path[i]
         xB, yB = path[i + 1]
 
         dx = xB - xA
         dy = yB - yA
 
-        #diagonal transition
+        # diagonal transition
         if abs(dx) == 1 and abs(dy) == 1:
-
             try:
-
                 side1 = get_cell(track, xA + dx, yA)
                 side2 = get_cell(track, xA, yA + dy)
 
-                #forbid squeezing through corners
-                if side1 == 'O' and side2 == 'O':
+                # forbid squeezing through corners
+                if side1 == "O" and side2 == "O":
                     return False
 
             except:
@@ -189,36 +176,25 @@ def reverse_dijkstra(track, finishes):
 
     for y in range(height):
         for x in range(width):
-
-            if get_cell(track, x, y) != 'O':
+            if get_cell(track, x, y) != "O":
                 dist[(x, y)] = INF
 
     pq = []
 
     for fx, fy in finishes:
-
         dist[(fx, fy)] = 0
 
-        heapq.heappush(
-            pq,
-            (0, fx, fy)
-        )
+        heapq.heappush(pq, (0, fx, fy))
 
-    directions = [
-        (-1, -1), (-1, 0), (-1, 1),
-        (0, -1),           (0, 1),
-        (1, -1),  (1, 0),  (1, 1)
-    ]
+    directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
     while pq:
-
         d, x, y = heapq.heappop(pq)
 
         if d != dist[(x, y)]:
             continue
 
         for dx, dy in directions:
-
             nx = x + dx
             ny = y + dy
 
@@ -228,7 +204,7 @@ def reverse_dijkstra(track, finishes):
             if nx >= width or ny >= height:
                 continue
 
-            if get_cell(track, nx, ny) == 'O':
+            if get_cell(track, nx, ny) == "O":
                 continue
 
             if not valid_move(track, x, y, nx, ny):
@@ -239,13 +215,9 @@ def reverse_dijkstra(track, finishes):
             nd = d + move_cost
 
             if nd < dist[(nx, ny)]:
-
                 dist[(nx, ny)] = nd
 
-                heapq.heappush(
-                    pq,
-                    (nd, nx, ny)
-                )
+                heapq.heappush(pq, (nd, nx, ny))
 
     return dist
 
@@ -261,7 +233,6 @@ def generate_moves(track, state):
 
     for ax in [-1, 0, 1]:
         for ay in [-1, 0, 1]:
-
             nvx = vx + ax * factor
             nvy = vy + ay * factor
 
@@ -278,13 +249,14 @@ def generate_moves(track, state):
 
     return moves
 
+
 def heuristic(x, y, vx, vy, reverse_dist):
 
     h = reverse_dist.get((x, y), INF)
 
     speed = math.sqrt(vx * vx + vy * vy)
 
-    #small momentum reward
+    # small momentum reward
     h -= 0.15 * speed
 
     return h
@@ -295,7 +267,6 @@ def reconstruct(state, parent_map):
     path = []
 
     while state is not None:
-
         x, y, vx, vy = state
 
         path.append((x, y))
@@ -306,6 +277,7 @@ def reconstruct(state, parent_map):
 
     return path
 
+
 def move_cost(track, x0, y0, x1, y1):
     path = supercover_line(x0, y0, x1, y1)
 
@@ -314,6 +286,7 @@ def move_cost(track, x0, y0, x1, y1):
         cost += terrain_cost(get_cell(track, x, y))
 
     return cost
+
 
 def weighted_astar(track):
 
@@ -330,52 +303,27 @@ def weighted_astar(track):
 
     print("Building reverse Dijkstra heuristic...")
 
-    reverse_dist = reverse_dijkstra(
-        track,
-        finishes
-    )
+    reverse_dist = reverse_dijkstra(track, finishes)
 
     print("Heuristic map built")
 
-    start_state = (
-        start[0],
-        start[1],
-        0,
-        0
-    )
+    start_state = (start[0], start[1], 0, 0)
 
     open_set = []
 
-    g_score = {
-        start_state: 0
-    }
+    g_score = {start_state: 0}
 
-    parent = {
-        start_state: None
-    }
+    parent = {start_state: None}
 
     visited = set()
 
-    h0 = heuristic(
-        start[0],
-        start[1],
-        0,
-        0,
-        reverse_dist
-    )
+    h0 = heuristic(start[0], start[1], 0, 0, reverse_dist)
 
-    heapq.heappush(
-        open_set,
-        (
-            WEIGHT * h0,
-            start_state
-        )
-    )
+    heapq.heappush(open_set, (WEIGHT * h0, start_state))
 
     expanded = 0
 
     while open_set:
-
         f, state = heapq.heappop(open_set)
 
         if state in visited:
@@ -386,68 +334,35 @@ def weighted_astar(track):
         expanded += 1
 
         if expanded % 10000 == 0:
-            print(
-                "Expanded:",
-                expanded,
-                "Open:",
-                len(open_set)
-            )
+            print("Expanded:", expanded, "Open:", len(open_set))
 
         x, y, vx, vy = state
 
-        #GOAL
+        # GOAL
         if (x, y) in finishes:
-
             print("Finish reached")
             print("Expanded nodes:", expanded)
 
-            return reconstruct(
-                state,
-                parent
-            )
+            return reconstruct(state, parent)
 
         for next_state in generate_moves(track, state):
-
             nx, ny, nvx, nvy = next_state
 
-            if not valid_move(
-                track,
-                x,
-                y,
-                nx,
-                ny
-            ):
+            if not valid_move(track, x, y, nx, ny):
                 continue
 
             tentative_g = g_score[state] + move_cost(track, x, y, nx, ny)
 
-            if (
-                next_state not in g_score
-                or
-                tentative_g < g_score[next_state]
-            ):
-
+            if next_state not in g_score or tentative_g < g_score[next_state]:
                 g_score[next_state] = tentative_g
 
                 parent[next_state] = state
 
-                h = heuristic(
-                    nx,
-                    ny,
-                    nvx,
-                    nvy,
-                    reverse_dist
-                )
+                h = heuristic(nx, ny, nvx, nvy, reverse_dist)
 
                 fscore = tentative_g + WEIGHT * h
 
-                heapq.heappush(
-                    open_set,
-                    (
-                        fscore,
-                        next_state
-                    )
-                )
+                heapq.heappush(open_set, (fscore, next_state))
 
     print("No solution found")
 
@@ -457,18 +372,13 @@ def weighted_astar(track):
 def write_csv(path, filename):
 
     with open(filename, "w") as f:
-
         for x, y in path:
             f.write(f"{x},{y}\n")
 
 
 if __name__ == "__main__":
-
     if len(sys.argv) < 2:
-
-        print(
-            "Usage: python solver.py track_05.t"
-        )
+        print("Usage: python solver.py track_05.t")
 
         sys.exit(1)
 
@@ -481,14 +391,10 @@ if __name__ == "__main__":
     path = weighted_astar(track)
 
     if not path:
-
         print("No path found")
         sys.exit(1)
 
-    output_file = track_file.replace(
-        ".t",
-        "_trip.csv"
-    )
+    output_file = track_file.replace(".t", "_trip.csv")
 
     write_csv(path, output_file)
 
