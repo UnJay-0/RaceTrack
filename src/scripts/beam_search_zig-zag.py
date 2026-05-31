@@ -119,7 +119,7 @@ def read_track(filename):
         return [list(line.strip()) for line in f]
 
 
-def find_positions(track):
+def find_positions(track: list[list[str]]):
 
     start = None
     finishes = []
@@ -248,12 +248,12 @@ def generate_moves(state):
 
 
 def beam_search_step(
-    beam,
-    track,
-    finishes,
-    beam_width,
-    visited,
-    position_visits
+    beam: list[tuple],
+    track: list[list[str]],
+    finishes: list[tuple],
+    beam_width: int,
+    visited: dict[tuple, int],
+    position_visits: dict
 ):
     candidates = []
 
@@ -359,7 +359,7 @@ def reconstruct(state, parent_map):
     return path
 
 
-def solve(track):
+def solve(track: list[list[str]]):
 
     start, finishes = find_positions(track)
 

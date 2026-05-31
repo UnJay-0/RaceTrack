@@ -297,5 +297,3 @@ print FH "\\end{tikzpicture}
 \\end{document}";
 
 close(FH);
-
-
