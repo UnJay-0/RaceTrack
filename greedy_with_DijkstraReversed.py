@@ -3,9 +3,15 @@ import math
 import heapq
 
 
-MAX_SPEED = 8
-WEIGHT = 2.0
 INF = 10**9
+MAX_STEPS_FACTOR = 80
+
+TERRAIN_WEIGHT = 0.25
+OBSTACLE_WEIGHT = 3.0
+REVISIT_WEIGHT = 12.0
+NO_PROGRESS_WEIGHT = 4.0
+TURN_WEIGHT = 0.15
+DIAGONAL_WEIGHT = 0.05
 
 
 def read_track(filename):
@@ -97,26 +103,15 @@ def supercover_line(x0, y0, x1, y1):
 
 def terrain_cost(cell):
     if cell == 'T':
-        return 1.0  
-    if cell == 'G':
-        return 2.0   
-    if cell == 'S':
         return 1.0
-    if cell == 'F':
-        return 1.0
-    return 1.0
-
-
-def terrain_factor(cell):
     if cell == 'G':
-        return 0.5   
-    if cell == 'T':
         return 2.0
     if cell == 'S':
         return 1.0
     if cell == 'F':
         return 1.0
     return 1.0
+
 
 def valid_move(track, x0, y0, x1, y1):
 
@@ -136,24 +131,6 @@ def valid_move(track, x0, y0, x1, y1):
         if get_cell(track, x, y) == 'O':
             return False
 
-    #forbid touching obstacle corners
-    dx_total = x1 - x0
-    dy_total = y1 - y0
-
-    steps = max(abs(dx_total), abs(dy_total))
-
-    if steps > 0:
-
-        for i in range(steps + 1):
-
-            t = i / steps
-
-            px = x0 + dx_total * t
-            py = y0 + dy_total * t
-
-            eps = 1e-9
-
-
     for i in range(len(path) - 1):
 
         xA, yA = path[i]
@@ -162,7 +139,7 @@ def valid_move(track, x0, y0, x1, y1):
         dx = xB - xA
         dy = yB - yA
 
-        #diagonal transition
+        # diagonal transition
         if abs(dx) == 1 and abs(dy) == 1:
 
             try:
@@ -170,11 +147,11 @@ def valid_move(track, x0, y0, x1, y1):
                 side1 = get_cell(track, xA + dx, yA)
                 side2 = get_cell(track, xA, yA + dy)
 
-                #forbid squeezing through corners
+                # forbid squeezing through corners
                 if side1 == 'O' and side2 == 'O':
                     return False
 
-            except:
+            except Exception:
                 return False
 
     return True
@@ -234,9 +211,9 @@ def reverse_dijkstra(track, finishes):
             if not valid_move(track, x, y, nx, ny):
                 continue
 
-            move_cost = 1.4 if dx != 0 and dy != 0 else 1.0
+            move_cost_value = 1.4 if dx != 0 and dy != 0 else 1.0
 
-            nd = d + move_cost
+            nd = d + move_cost_value
 
             if nd < dist[(nx, ny)]:
 
@@ -250,62 +227,6 @@ def reverse_dijkstra(track, finishes):
     return dist
 
 
-def generate_moves(track, state):
-
-    x, y, vx, vy = state
-    cell = get_cell(track, x, y)
-
-    factor = terrain_factor(cell)
-
-    moves = []
-
-    for ax in [-1, 0, 1]:
-        for ay in [-1, 0, 1]:
-
-            nvx = vx + ax * factor
-            nvy = vy + ay * factor
-
-            nvx = int(round(nvx))
-            nvy = int(round(nvy))
-
-            if abs(nvx) > MAX_SPEED or abs(nvy) > MAX_SPEED:
-                continue
-
-            nx = x + nvx
-            ny = y + nvy
-
-            moves.append((nx, ny, nvx, nvy))
-
-    return moves
-
-def heuristic(x, y, vx, vy, reverse_dist):
-
-    h = reverse_dist.get((x, y), INF)
-
-    speed = math.sqrt(vx * vx + vy * vy)
-
-    #small momentum reward
-    h -= 0.15 * speed
-
-    return h
-
-
-def reconstruct(state, parent_map):
-
-    path = []
-
-    while state is not None:
-
-        x, y, vx, vy = state
-
-        path.append((x, y))
-
-        state = parent_map[state]
-
-    path.reverse()
-
-    return path
-
 def move_cost(track, x0, y0, x1, y1):
     path = supercover_line(x0, y0, x1, y1)
 
@@ -315,7 +236,81 @@ def move_cost(track, x0, y0, x1, y1):
 
     return cost
 
-def weighted_astar(track):
+
+def obstacle_proximity_penalty(track, x, y):
+
+    height = len(track)
+    width = len(track[0])
+
+    penalty = 0.0
+
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            if dx == 0 and dy == 0:
+                continue
+
+            nx = x + dx
+            ny = y + dy
+
+            if nx < 0 or ny < 0 or nx >= width or ny >= height:
+                penalty += 1.5
+            elif get_cell(track, nx, ny) == 'O':
+                penalty += 1.0
+
+    return penalty
+
+
+def generate_unit_moves(track, state):
+
+    x, y, vx, vy = state
+    moves = []
+
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+
+            if dx == 0 and dy == 0:
+                continue
+
+            nx = x + dx
+            ny = y + dy
+
+            next_state = (nx, ny, dx, dy)
+            moves.append(next_state)
+
+    return moves
+
+
+def greedy_unit_score(track, current_state, next_state, reverse_dist, visit_count):
+    x, y, vx, vy = current_state
+    nx, ny, nvx, nvy = next_state
+
+    current_h = reverse_dist.get((x, y), INF)
+    next_h = reverse_dist.get((nx, ny), INF)
+
+    if next_h >= INF:
+        return INF
+
+    score = next_h
+
+    score += TERRAIN_WEIGHT * move_cost(track, x, y, nx, ny)
+
+    score += OBSTACLE_WEIGHT * obstacle_proximity_penalty(track, nx, ny)
+
+    score += REVISIT_WEIGHT * visit_count.get((nx, ny), 0)
+
+    if next_h >= current_h:
+        score += NO_PROGRESS_WEIGHT * (next_h - current_h + 1.0)
+
+    turn_amount = abs(nvx - vx) + abs(nvy - vy)
+    score += TURN_WEIGHT * turn_amount
+
+    if nvx != 0 and nvy != 0:
+        score += DIAGONAL_WEIGHT
+
+    return score
+
+
+def greedy_unit_step_constructor(track):
 
     start, finishes = find_positions(track)
 
@@ -337,120 +332,75 @@ def weighted_astar(track):
 
     print("Heuristic map built")
 
-    start_state = (
+    state = (
         start[0],
         start[1],
         0,
         0
     )
 
-    open_set = []
+    path = [(state[0], state[1])]
+    visit_count = {(state[0], state[1]): 1}
 
-    g_score = {
-        start_state: 0
-    }
+    height = len(track)
+    width = len(track[0])
+    max_steps = MAX_STEPS_FACTOR * height * width
 
-    parent = {
-        start_state: None
-    }
-
-    visited = set()
-
-    h0 = heuristic(
-        start[0],
-        start[1],
-        0,
-        0,
-        reverse_dist
-    )
-
-    heapq.heappush(
-        open_set,
-        (
-            WEIGHT * h0,
-            start_state
-        )
-    )
-
-    expanded = 0
-
-    while open_set:
-
-        f, state = heapq.heappop(open_set)
-
-        if state in visited:
-            continue
-
-        visited.add(state)
-
-        expanded += 1
-
-        if expanded % 10000 == 0:
-            print(
-                "Expanded:",
-                expanded,
-                "Open:",
-                len(open_set)
-            )
+    for step in range(1, max_steps + 1):
 
         x, y, vx, vy = state
 
-        #GOAL
         if (x, y) in finishes:
-
             print("Finish reached")
-            print("Expanded nodes:", expanded)
+            print("Steps:", step - 1)
+            return path
 
-            return reconstruct(
-                state,
-                parent
-            )
+        candidates = []
 
-        for next_state in generate_moves(track, state):
+        for next_state in generate_unit_moves(track, state):
 
             nx, ny, nvx, nvy = next_state
 
-            if not valid_move(
-                track,
-                x,
-                y,
-                nx,
-                ny
-            ):
+            if not valid_move(track, x, y, nx, ny):
                 continue
 
-            tentative_g = g_score[state] + move_cost(track, x, y, nx, ny)
+            score = greedy_unit_score(
+                track,
+                state,
+                next_state,
+                reverse_dist,
+                visit_count
+            )
 
-            if (
-                next_state not in g_score
-                or
-                tentative_g < g_score[next_state]
-            ):
+            if score >= INF:
+                continue
 
-                g_score[next_state] = tentative_g
+            candidates.append((score, next_state))
 
-                parent[next_state] = state
+        if not candidates:
+            print("Greedy unit-step constructor got stuck: no valid candidate")
+            print("Last state:", state)
+            return []
 
-                h = heuristic(
-                    nx,
-                    ny,
-                    nvx,
-                    nvy,
-                    reverse_dist
-                )
+        candidates.sort(key=lambda item: item[0])
 
-                fscore = tentative_g + WEIGHT * h
+        best_score, best_state = candidates[0]
 
-                heapq.heappush(
-                    open_set,
-                    (
-                        fscore,
-                        next_state
-                    )
-                )
+        if step % 100 == 0:
+            bx, by, bvx, bvy = best_state
+            print(
+                "Step:", step,
+                "Position:", (bx, by),
+                "Direction:", (bvx, bvy),
+                "Score:", round(best_score, 3),
+                "ReverseDist:", round(reverse_dist.get((bx, by), INF), 3)
+            )
 
-    print("No solution found")
+        state = best_state
+        path.append((state[0], state[1]))
+        visit_count[(state[0], state[1])] = visit_count.get((state[0], state[1]), 0) + 1
 
+    print("Greedy unit-step constructor stopped: maximum number of steps reached")
     return []
 
 
@@ -467,7 +417,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
 
         print(
-            "Usage: python solver.py track_05.t"
+            "Usage: python greedy_unit_step_reverse_dijkstra.py track_05.t"
         )
 
         sys.exit(1)
@@ -478,7 +428,7 @@ if __name__ == "__main__":
 
     track = read_track(track_file)
 
-    path = weighted_astar(track)
+    path = greedy_unit_step_constructor(track)
 
     if not path:
 
