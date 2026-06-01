@@ -8,15 +8,7 @@ class Heuristic:
 
     @staticmethod
     def terrain_cost(position: Position) -> float:
-        if position.content == GRASS:
-            return 2.0
-        # if position.content == TRACK:
-        #     return 1.0
-        # if position.content == START:
-        #     return 1.0
-        # if position.content == FINISH:
-        #     return 1.0
-        return 1.0
+        return 2.0 if position.content == GRASS else 1.0
 
     @staticmethod
     def reconstruct(state: State, parent_map: dict[State, State]) -> list[Position]:
