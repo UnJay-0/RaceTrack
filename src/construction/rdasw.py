@@ -16,7 +16,6 @@ class Rdasw(Heuristic):
 
     @staticmethod
     def reverse_dijkstra(track: Track) -> dict[Position, int]:
-        height, width = track.get_boundaries()
         dist = {}
         for line in track.positions:
             for pos in line:
@@ -28,7 +27,7 @@ class Rdasw(Heuristic):
         for fx, fy in track.end_indexes:
             pos = track.get_position((fx, fy))
             dist[pos] = 0
-            heapq.heappush(heap, (0, pos))
+            heapq.heappush(heap, (0, State(pos, Vector(0, 0))))
 
         directions = [
             (-1, -1),
@@ -42,7 +41,8 @@ class Rdasw(Heuristic):
         ]
 
         while heap:
-            d, pos = heapq.heappop(heap)
+            d, state = heapq.heappop(heap)
+            pos = state.position
             if d != dist[pos]:
                 continue
             x = pos.x
@@ -51,19 +51,16 @@ class Rdasw(Heuristic):
                 nx = x + dx
                 ny = y + dy
                 next_pos = track.get_position((nx, ny))
-                if nx < 0 or ny < 0:
+                next_vector = Vector.get_vector((x, y), (nx, ny))
+                if track.boundaries_check(nx, ny):
                     continue
-                if nx >= width or ny >= height:
-                    continue
-                if next_pos.content == OBSTACLE:
-                    continue
-                if not track.obstacles_check(x, y, nx, ny):
+                if not track.is_valid_move(pos, next_pos, state.vector, next_vector):
                     continue
                 move_cost = 1.4 if dx != 0 and dy != 0 else 1.0
                 nd = d + move_cost
                 if nd < dist[next_pos]:
                     dist[next_pos] = nd
-                    heapq.heappush(heap, (nd, next_pos))
+                    heapq.heappush(heap, (nd, State(next_pos, next_vector)))
         return dist
 
     @staticmethod
@@ -97,7 +94,7 @@ class Rdasw(Heuristic):
         reverse_dist = Rdasw.reverse_dijkstra(track)
 
         print("Heuristic map built")
-        print(reverse_dist)
+        # print(reverse_dist)
 
         start_state = State(start, Vector(0, 0.0))
 
