@@ -5,6 +5,10 @@ import math
 import numpy as np
 
 EPS = 1e-6
+NORTH = "north"
+SOUTH = "south"
+EAST = "east"
+WEST = "west"
 
 
 class Vector:
@@ -48,14 +52,10 @@ class Vector:
             return True
         if not isinstance(other, Vector):
             return NotImplemented
-        return (
-            self.magnitude == other.magnitude
-            and self.direction - EPS >= other.direction
-            and self.direction + EPS <= other.direction
-        )
+        return self.get_point() == other.get_point()
 
     def __hash__(self) -> int:
-        return hash((self.magnitude, self.direction))
+        return hash(self.get_point())
 
     def __repr__(self) -> str:
         vx, vy = self.get_point()
