@@ -5,12 +5,7 @@ import heapq
 
 INF = 10**9
 MAX_STEPS_FACTOR = 80
-
-TERRAIN_WEIGHT = 0.25
-OBSTACLE_WEIGHT = 3.0
-REVISIT_WEIGHT = 12.0
-NO_PROGRESS_WEIGHT = 4.0
-TURN_WEIGHT = 0.15
+REVISIT_WEIGHT = 10.0
 DIAGONAL_WEIGHT = 0.05
 
 
@@ -77,7 +72,7 @@ def supercover_line(x0, y0, x1, y1):
 
     while ix < nx or iy < ny:
 
-        if (1 + 2 * ix) * ny == (1 + 2 * iy) * nx:
+        if (1 + ix) * ny == (1 + iy) * nx:
 
             # exact corner crossing
             x += sign_x
@@ -86,7 +81,7 @@ def supercover_line(x0, y0, x1, y1):
             ix += 1
             iy += 1
 
-        elif (1 + 2 * ix) * ny < (1 + 2 * iy) * nx:
+        elif (1 + ix) * ny < (1 + iy) * nx:
 
             x += sign_x
             ix += 1
@@ -148,7 +143,7 @@ def valid_move(track, x0, y0, x1, y1):
                 side2 = get_cell(track, xA, yA + dy)
 
                 # forbid squeezing through corners
-                if side1 == 'O' and side2 == 'O':
+                if side1 == 'O' or side2 == 'O':
                     return False
 
             except Exception:
@@ -198,15 +193,6 @@ def reverse_dijkstra(track, finishes):
 
             nx = x + dx
             ny = y + dy
-
-            if nx < 0 or ny < 0:
-                continue
-
-            if nx >= width or ny >= height:
-                continue
-
-            if get_cell(track, nx, ny) == 'O':
-                continue
 
             if not valid_move(track, x, y, nx, ny):
                 continue
@@ -271,6 +257,11 @@ def generate_unit_moves(track, state):
             if dx == 0 and dy == 0:
                 continue
 
+            if vx != 0 or vy != 0:
+                dot = dx * vx + dy * vy
+                if dot < 0:
+                    continue
+
             nx = x + dx
             ny = y + dy
 
@@ -292,17 +283,17 @@ def greedy_unit_score(track, current_state, next_state, reverse_dist, visit_coun
 
     score = next_h
 
-    score += TERRAIN_WEIGHT * move_cost(track, x, y, nx, ny)
+    score += move_cost(track, x, y, nx, ny)
 
-    score += OBSTACLE_WEIGHT * obstacle_proximity_penalty(track, nx, ny)
+    score += obstacle_proximity_penalty(track, nx, ny)
 
     score += REVISIT_WEIGHT * visit_count.get((nx, ny), 0)
 
     if next_h >= current_h:
-        score += NO_PROGRESS_WEIGHT * (next_h - current_h + 1.0)
+        score += next_h - current_h + 1.0
 
     turn_amount = abs(nvx - vx) + abs(nvy - vy)
-    score += TURN_WEIGHT * turn_amount
+    score += turn_amount
 
     if nvx != 0 and nvy != 0:
         score += DIAGONAL_WEIGHT
