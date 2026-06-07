@@ -58,15 +58,16 @@ if __name__ == "__main__":
     write_csv(track, path, output_file.split("/")[1], construction_type)
 
     improver = EvolutionaryAlgo(track, corner_grouping_threshold=3, gate_length=7)
-    path = improver.improve(path)
+    improved_path = improver.improve(path)
 
-    if not path:
-        print("No improved path found")
-        sys.exit(1)
+    if not improved_path:
+        print("No improved path found, using construction path")
+        improved_path = path  
 
-    output_file = track_file.replace(".t", "_trip.csv")
-
-    write_csv(track, path, output_file.split("/")[1], "improved")
+    write_csv(track, improved_path, output_file.split("/")[1], "improved")
 
     print("Trip written to:", output_file)
-    print("Path length:", len(path))
+    print("Path length:", len(improved_path))
+
+
+

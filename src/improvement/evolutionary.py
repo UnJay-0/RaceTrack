@@ -29,6 +29,9 @@ class EvolutionaryAlgo:
             corner for corner in self.corners if corner.is_relevant(path_positions)
         ]
         self.track.write_track_with_corners(relevant_corners)
+        for corner in relevant_corners:
+            gates = corner.get_corner_gates()
+            print(f"Corner apex={corner.get_apex()}: gates = {gates}")
         is_line_sector = True
         solution_paths: list[States] = [States([path[0]])]
         print(len(path))
@@ -50,6 +53,7 @@ class EvolutionaryAlgo:
                 # print(gate)
                 if gate and gate not in crossed_gates:
                     crossed_gates.add(gate)
+                    print(f"gate crossed at step {i}, state: {path[i]}, next: {path[i+1]}")
                     if is_line_sector:
                         print("\nentry gate crossed")
                         # Generate N solution path with different corner entry

@@ -9,10 +9,7 @@ from src.vector import Vector
 MAX_STEPS_FACTOR = 80
 
 GRASS_PENALTY = 1000.0
-TERRAIN_WEIGHT = 0.25
-OBSTACLE_WEIGHT = 1.0
-REVISIT_WEIGHT = 12.0
-NO_PROGRESS_WEIGHT = 4.0
+REVISIT_WEIGHT = 10.0
 TURN_WEIGHT = 0.15
 LOOKAHEAD_STEPS = 4
 LOOKAHEAD_WEIGHT = 1
@@ -155,7 +152,6 @@ class RdGreedy(Heuristic):
         if obstacles:
             score += (
                 attenuation
-                * OBSTACLE_WEIGHT
                 * self.obstacle_proximity_penalty(
                     next_state.position, next_state.vector.magnitude - 2
                 )
@@ -171,7 +167,7 @@ class RdGreedy(Heuristic):
         score += REVISIT_WEIGHT * visit_count.get(next_state.position, 0)
 
         if next_h >= current_h:
-            score += NO_PROGRESS_WEIGHT * (next_h - current_h + 1.0)
+            score += next_h - current_h + 1.0
 
         if next_state.position.content == GRASS:
             score += GRASS_PENALTY * attenuation
@@ -216,11 +212,14 @@ class RdGreedy(Heuristic):
                 return States(path)
 
             candidates = []
+
+            
             next_states = (
                 state.generate_unit_moves(self.track)
                 if force_unit
                 else state.generate_moves(self.track)
             )
+
 
             for next_state in next_states:
                 if next_state in blocked_states:
