@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     write_csv(track, path, output_file.split("/")[1], construction_type)
 
-    improver = EvolutionaryAlgo(track, corner_grouping_threshold=3, gate_length=7)
+    improver = EvolutionaryAlgo(track, corner_grouping_threshold=3, gate_length=3)
     path = improver.improve(path)
 
     if not path:

@@ -91,6 +91,20 @@ class States:
         for state in self.states:
             yield state
 
+    def __eq__(self, other: object) -> bool:
+        if other is self:
+            return True
+        if not isinstance(other, States):
+            return NotImplemented
+        if len(self.states) != len(other.states):
+            return False
+        # return all(s == o for s, o in zip(self.states, other.states))
+        # order-independent alternative (only if needed)
+        return set(self.states) == set(other.states)
+
+    def __hash__(self) -> int:
+        return hash(tuple(self.states))  # requires State to be hashable, which it is
+
     def __len__(self):
         return len(self.states)
 

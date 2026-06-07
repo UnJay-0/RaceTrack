@@ -126,6 +126,7 @@ def optimize_corner_path(
 
                 # Check exit gate crossing
                 if crossed_gate(current.position, next_state.position, exit_gate):
+                    print(next_state.generate_moves(track))
                     completed.append(path + [next_state])
                     continue
 

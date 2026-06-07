@@ -14,7 +14,7 @@ OBSTACLE_WEIGHT = 1.0
 REVISIT_WEIGHT = 12.0
 NO_PROGRESS_WEIGHT = 4.0
 TURN_WEIGHT = 0.15
-LOOKAHEAD_STEPS = 4
+LOOKAHEAD_STEPS = 2
 LOOKAHEAD_WEIGHT = 1
 
 # Penalties fade to zero within this many reverse-Dijkstra steps of the finish
@@ -22,7 +22,7 @@ FINISH_FADE_RADIUS = 15
 # Speed limit applied within FINISH_FADE_RADIUS of the finish.
 # Set to None (or math.inf) to disable entirely.
 FINISH_SPEED_LIMIT: float | None = 2.0
-FINISH_SPEED_PENALTY = 1e6  # large enough to always lose to a legal move
+FINISH_SPEED_PENALTY = 1e4  # large enough to always lose to a legal move
 
 
 class RdGreedy(Heuristic):
@@ -80,7 +80,7 @@ class RdGreedy(Heuristic):
                 ny = pos.y + dy
                 if nx < 0 or ny < 0 or nx >= width or ny >= height:
                     penalty += 1.5 / dist
-                elif self.track.get_position((nx, ny)).content == OBSTACLE:
+                elif self.track.get_position((nx, ny)).is_grass_or_obstacle():
                     penalty += 1.0 / dist  # closer obstacles hurt more
         return penalty
 
@@ -225,12 +225,12 @@ class RdGreedy(Heuristic):
             for next_state in next_states:
                 if next_state in blocked_states:
                     continue
-                next_pos = next_state.position
+                # next_pos = next_state.position
 
-                if not self.track.is_valid_move(
-                    pos, next_pos, state.vector, next_state.vector
-                ):
-                    continue
+                # if not self.track.is_valid_move(
+                #     pos, next_pos, state.vector, next_state.vector
+                # ):
+                #     continue
 
                 score = self.greedy_score(
                     state,

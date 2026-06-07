@@ -19,7 +19,7 @@ class EvolutionaryAlgo:
     ) -> None:
         self.track = track
         self.corners = Corner.group_corner_positions(
-            self.track.get_corners(), corner_grouping_threshold, gate_length
+            track, self.track.get_corners(), corner_grouping_threshold, gate_length
         )
 
     def improve(self, path: States) -> States | None:
@@ -74,9 +74,9 @@ class EvolutionaryAlgo:
 
         return self._select_best(solution_paths)
 
-    def _mutate_line(self, paths_to_mutate, gate, n=10):
+    def _mutate_line(self, paths_to_mutate: list[States], gate, n=10):
         print("#" * 50 + " MUTATE LINE " + "#" * 50)
-        paths = []
+        paths = set()
         for path in paths_to_mutate:
             print(f"mutating path: \n{path}\n")
             temp_track = self.track.deepcopy()
@@ -93,7 +93,6 @@ class EvolutionaryAlgo:
                 if not pos.is_grass_or_obstacle()
             ]
             if not gate_candidates:
-                print(f"gate candidates: {gate_candidates}")
                 continue
 
             print(f"corner entries: {gate_candidates}")
@@ -101,23 +100,28 @@ class EvolutionaryAlgo:
             temp_track.change_finish_positions(gate_candidates)
             print(f"On track: \n{temp_track}")
             negate_set = set()
-            speed_limit = None
-            for i in range(n):
+            speed_limit = 1
+            lookahead = LOOKAHEAD_STEPS
+            for _ in range(n):
                 heuristic = RdGreedy(temp_track)
+                print(f"using speed limit: {speed_limit}")
+                print(f"using lookahead: {lookahead}")
                 sol_path = heuristic.greedy_path_constructor(
-                    False, path[-1].vector, negate_set, speed_limit
+                    False, path[-1].vector, negate_set, speed_limit, lookahead
                 )
                 if not sol_path:
                     continue
-
+                # if speed_limit is None:
+                #     speed_limit = sol_path[-1].vector.magnitude
                 print(f"\nFound path: \n{sol_path}")
                 # print(negate_set)
-                paths.append(path.concat(States(sol_path[1:])))
-                speed_limit = sol_path[-1].vector.magnitude - 1
-                if speed_limit < 1:
-                    break
-                print(f"new speed limit: {speed_limit}")
-        return paths
+                result = path.concat(States(sol_path[1:]))
+                print(result in paths)
+                paths.add(result)
+                speed_limit += 1
+                if speed_limit >= 4:
+                    lookahead += 1
+        return list(paths)
 
     def _mutate_corner(self, paths_to_mutate, corner, exit_gate):
         print("#" * 50 + " MUTATE CORNER " + "#" * 50)
