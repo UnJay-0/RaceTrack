@@ -42,6 +42,14 @@ class State:
             )
             if int(new_vector.magnitude) != 1:
                 continue
+
+            vx, vy = self.vector.get_point()
+            nvx, nvy = new_vector.get_point()
+            if vx != 0 or vy != 0:
+                dot = nvx * vx + nvy * vy
+                if dot < 0:
+                    continue
+
             if track.is_valid_move(
                 self.position, new_position, self.vector, new_vector
             ):
