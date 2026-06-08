@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (MiKTeX 24.1) (preloaded format=pdflatex 2026.6.7)  8 JUN 2026 23:16
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (MiKTeX 24.1) (preloaded format=pdflatex 2026.6.7)  8 JUN 2026 23:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**./track_10.tex
-(track_10.tex
+**./track_05
+(track_05
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-04>
 
@@ -405,8 +405,9 @@ tex.def
 File: l3backend-pdftex.def 2024-01-04 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count285
 \l__pdf_internal_box=\box63
-) (track_10.aux)
-\openout1 = `track_10.aux'.
+)
+No file track_05.aux.
+\openout1 = `track_05.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 5.
 LaTeX Font Info:    ... okay on input line 5.
@@ -463,24 +464,24 @@ Missing character: There is no ; in font nullfont!
 [1
 
 {C:/Users/Admin/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
-(track_10.aux)
+(track_05.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-04>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 12359 strings out of 474486
- 261136 string characters out of 5743756
- 2487542 words of memory out of 5000000
- 34453 multiletter control sequences out of 15000+600000
+ 12356 strings out of 474486
+ 261050 string characters out of 5743756
+ 2905133 words of memory out of 5000000
+ 34452 multiletter control sequences out of 15000+600000
  558666 words of font info for 38 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 117i,7n,121p,915b,553s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 117i,7n,121p,2822b,553s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/Admin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
 cmr12.pfb><C:/Users/Admin/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsf
 onts/cm/cmr17.pfb>
-Output written on track_10.pdf (1 page, 97605 bytes).
+Output written on track_05.pdf (1 page, 149232 bytes).
 PDF statistics:
  19 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
