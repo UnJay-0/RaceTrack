@@ -33,21 +33,16 @@ if __name__ == "__main__":
     elif construction_type == "g":
         greedy = RdGreedy(track)
         path_length = 10e9
-        lookahead = 10
-        while True:
+        for lookahead in range(11):
             new_path = greedy.greedy_path_constructor(
                 force_unit=True,
                 speed_limit=None,
                 lookahead_steps=lookahead,
                 obstacles=False,
             )
-            if path_length <= len(new_path):
-                print(path_length, lookahead)
-                break
-            else:
+            if path_length >= len(new_path):
                 path_length = len(new_path)
                 path = new_path
-                lookahead -= 1
 
     if not path:
         print("No path found")
@@ -57,17 +52,15 @@ if __name__ == "__main__":
 
     write_csv(track, path, output_file.split("/")[1], construction_type)
 
-    improver = EvolutionaryAlgo(track, corner_grouping_threshold=3, gate_length=7)
+    improver = EvolutionaryAlgo(track, corner_grouping_threshold=4, gate_length=2)
     improved_path = improver.improve(path)
 
     if not improved_path:
         print("No improved path found, using construction path")
-        improved_path = path  
+        improved_path = path
+        sys.exit(1)
 
     write_csv(track, improved_path, output_file.split("/")[1], "improved")
 
     print("Trip written to:", output_file)
     print("Path length:", len(improved_path))
-
-
-

@@ -48,20 +48,6 @@ class RdGreedy(Heuristic):
             cost += Heuristic.terrain_cost(pos)
         return cost
 
-    # def obstacle_proximity_penalty(self, pos: Position) -> float:
-    #     height, width = self.track.get_boundaries()
-    #     penalty = 0.0
-    #     for dx in [-1, 0, 1]:
-    #         for dy in [-1, 0, 1]:
-    #             if dx == 0 and dy == 0:
-    #                 continue
-    #             nx = pos.x + dx
-    #             ny = pos.y + dy
-    #             if nx < 0 or ny < 0 or nx >= width or ny >= height:
-    #                 penalty += 1.5
-    #             elif self.track.get_position((nx, ny)).is_grass_or_obstacle():
-    #                 penalty += 1.0
-    #     return penalty
     def obstacle_proximity_penalty(self, pos: Position, speed: float = 1.0) -> float:
         height, width = self.track.get_boundaries()
         penalty = 0.0
@@ -144,17 +130,10 @@ class RdGreedy(Heuristic):
 
         score = next_h
 
-        # score += TERRAIN_WEIGHT * self.move_cost(
-        #     current_state.position, next_state.position
-        # )
-
         # Wall-avoidance penalties — attenuated near finish
         if obstacles:
-            score += (
-                attenuation
-                * self.obstacle_proximity_penalty(
-                    next_state.position, next_state.vector.magnitude - 2
-                )
+            score += attenuation * self.obstacle_proximity_penalty(
+                next_state.position, next_state.vector.magnitude - 2
             )
         score += (
             attenuation
@@ -213,23 +192,15 @@ class RdGreedy(Heuristic):
 
             candidates = []
 
-            
             next_states = (
                 state.generate_unit_moves(self.track)
                 if force_unit
                 else state.generate_moves(self.track)
             )
 
-
             for next_state in next_states:
                 if next_state in blocked_states:
                     continue
-                # next_pos = next_state.position
-
-                # if not self.track.is_valid_move(
-                #     pos, next_pos, state.vector, next_state.vector
-                # ):
-                #     continue
 
                 score = self.greedy_score(
                     state,
