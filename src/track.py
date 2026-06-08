@@ -212,6 +212,17 @@ class Track:
 
                 count = sum([n_blocked, s_blocked, e_blocked, w_blocked])
 
+                # avoid corners near start or finish
+                if self.start_pos in (north, south, east, west):
+                    continue
+                if (
+                    north in self.end_positions
+                    or south in self.end_positions
+                    or east in self.end_positions
+                    or west in self.end_positions
+                ):
+                    continue
+
                 if count == 2:
                     opposite = (n_blocked and s_blocked) or (e_blocked and w_blocked)
                     if not opposite:
@@ -365,44 +376,10 @@ class Corner:
             )
         return tuple(gate_1), tuple(gate_2)
 
-    # def get_corner_gates(self, track_width: int = 5):
-    #     gate_pos_1 = self.positions[0]
-    #     gate_pos_2 = self.positions[-1]
-    #     apex = self.get_apex()
-
-    #     # Cross product of (pos[0]→pos[-1]) × (pos[0]→apex)
-    #     span_x = gate_pos_2.x - gate_pos_1.x
-    #     span_y = gate_pos_2.y - gate_pos_1.y
-    #     to_apex_x = apex.x - gate_pos_1.x
-    #     to_apex_y = apex.y - gate_pos_1.y
-    #     cross = span_x * to_apex_y - span_y * to_apex_x
-
-    #     # cross > 0 → pos[0] uses CW,  pos[-1] uses CCW
-    #     # cross ≤ 0 → pos[0] uses CCW, pos[-1] uses CW
-    #     entry_ccw = cross <= 0
-    #     exit_ccw = cross > 0
-
-    #     def _make_gate(
-    #         anchor: Position, apex: Position, length: float, ccw: bool
-    #     ) -> tuple[tuple[float, float], tuple[float, float]]:
-    #         ax = anchor.x - apex.x
-    #         ay = anchor.y - apex.y
-    #         norm = math.sqrt(ax**2 + ay**2) or 1
-    #         if ccw:
-    #             px, py = -ay / norm, ax / norm
-    #         else:
-    #             px, py = ay / norm, -ax / norm
-    #         return (
-    #             (anchor.x, anchor.y),
-    #             (anchor.x + px * length, anchor.y + py * length),
-    #         )
-
-    #     gate_entry = _make_gate(gate_pos_1, apex, track_width, entry_ccw)
-    #     gate_exit = _make_gate(gate_pos_2, apex, track_width, exit_ccw)
-    #     return gate_entry, gate_exit
-
     def get_crossed_gate(
-        self, pos_1: Position, pos_2: Position
+        self,
+        pos_1: Position,
+        pos_2: Position,
     ) -> tuple[tuple[float, float], tuple[float, float]] | None:
         for gate in self.corner_gates:
             if self.step_crossed_gate(pos_1, pos_2, gate):
@@ -447,21 +424,45 @@ class Corner:
         track: Track,
         positions: list[Position],
         threshold: float = CORNER_GROUPING_THRESHOLD,
-        gate_legth: int = GATE_LENGTH,
+        gate_length: int = GATE_LENGTH,
     ) -> list[Corner]:
         n = len(positions)
         uf = UnionFind(n)
 
         for i in range(n):
             for j in range(i + 1, n):
-                if positions[i].get_distance_to(positions[j]) <= threshold:
+                lateral = positions[i].get_lateral_neighborhood(
+                    track, False
+                ) + positions[i].get_lateral_neighborhood(track, True)
+                diagonal = positions[i].get_diagonal_neighborhood(
+                    track, False
+                ) + positions[i].get_diagonal_neighborhood(track, True)
+                if positions[j] in lateral:
                     uf.union(i, j)
+                elif positions[j] in diagonal:
+                    if positions[j] in diagonal:
+                        other_x = track.get_position((positions[j].x, positions[i].y))
+                        other_y = track.get_position((positions[i].x, positions[j].y))
+                        if other_x.content == OBSTACLE and other_y.content == OBSTACLE:
+                            uf.remove(j)
+                        else:
+                            uf.union(i, j)
+                elif positions[i].get_distance_to(positions[j]) <= threshold:
+                    line = track.supercover_line(
+                        positions[i].x, positions[i].y, positions[j].x, positions[j].y
+                    )
+                    union = True
+                    for pos in line:
+                        if pos.content == OBSTACLE:
+                            union = False
+                    if union:
+                        uf.union(i, j)
 
         groups: dict[int, list[Position]] = defaultdict(list)
         for i, pos in enumerate(positions):
             groups[uf.find(i)].append(pos)
 
-        return [Corner(track, group, gate_legth) for group in groups.values()]
+        return [Corner(track, group, gate_length) for group in groups.values()]
 
     def __repr__(self) -> str:
         return self.positions.__str__()
@@ -557,7 +558,7 @@ if __name__ == "__main__":
     output_file = sys.argv[2] if len(sys.argv) > 2 else "track_corners.t"
 
     track = Track(track_file)
-    corners = Corner.group_corner_positions(track, track.get_corners(), 3)
+    corners = Corner.group_corner_positions(track, track.get_corners(), 4, 2)
 
     corners = [corner for corner in corners if len(corner.positions) > 1]
 

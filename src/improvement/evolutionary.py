@@ -30,7 +30,7 @@ class EvolutionaryAlgo:
         ]
         self.track.write_track_with_corners(relevant_corners)
         for corner in relevant_corners:
-            gates = corner.get_corner_gates()
+            gates = corner.get_corner_gates(self.track)
             print(f"Corner apex={corner.get_apex()}: gates = {gates}")
         is_line_sector = True
         solution_paths: list[States] = [States([path[0]])]
@@ -53,7 +53,9 @@ class EvolutionaryAlgo:
                 # print(gate)
                 if gate and gate not in crossed_gates:
                     crossed_gates.add(gate)
-                    print(f"gate crossed at step {i}, state: {path[i]}, next: {path[i+1]}")
+                    print(
+                        f"gate crossed at step {i}, state: {path[i]}, next: {path[i + 1]}"
+                    )
                     if is_line_sector:
                         print("\nentry gate crossed")
                         # Generate N solution path with different corner entry
@@ -78,10 +80,13 @@ class EvolutionaryAlgo:
 
         return self._select_best(solution_paths)
 
-    def _mutate_line(self, paths_to_mutate: list[States], gate, n=10):
+    def _mutate_line(self, paths_to_mutate: list[States], gate, n=7):
         print("#" * 50 + " MUTATE LINE " + "#" * 50)
         paths = set()
+        negate_set = set()
         for path in paths_to_mutate:
+            if path[-1] in negate_set:
+                continue
             print(f"mutating path: \n{path}\n")
             temp_track = self.track.deepcopy()
             temp_track.change_start(
@@ -103,25 +108,26 @@ class EvolutionaryAlgo:
 
             temp_track.change_finish_positions(gate_candidates)
             print(f"On track: \n{temp_track}")
-            negate_set = set()
-            speed_limit = 1
+            speed_limit = 2
             lookahead = LOOKAHEAD_STEPS
             for _ in range(n):
                 heuristic = RdGreedy(temp_track)
                 print(f"using speed limit: {speed_limit}")
                 print(f"using lookahead: {lookahead}")
                 sol_path = heuristic.greedy_path_constructor(
-                    False, path[-1].vector, negate_set, speed_limit, lookahead
+                    False, path[-1].vector, set(), speed_limit, lookahead
                 )
                 if not sol_path:
-                    continue
-                # if speed_limit is None:
-                #     speed_limit = sol_path[-1].vector.magnitude
-                print(f"\nFound path: \n{sol_path}")
-                # print(negate_set)
-                result = path.concat(States(sol_path[1:]))
-                print(result in paths)
-                paths.add(result)
+                    negate_set.add(path[-1])
+                    pass
+                else:
+                    # if speed_limit is None:
+                    #     speed_limit = sol_path[-1].vector.magnitude
+                    print(f"\nFound path: \n{sol_path}")
+                    # print(negate_set)
+                    result = path.concat(States(sol_path[1:]))
+                    print(result in paths)
+                    paths.add(result)
                 speed_limit += 1
                 if speed_limit >= 4:
                     lookahead += 1

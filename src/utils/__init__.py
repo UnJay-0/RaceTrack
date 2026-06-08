@@ -1,15 +1,38 @@
 class UnionFind:
     def __init__(self, n: int):
         self.parent = list(range(n))
+        self.rank = [0] * n
+        self.removed = set()
 
     def find(self, x: int) -> int:
         while self.parent[x] != x:
-            self.parent[x] = self.parent[self.parent[x]]
+            self.parent[x] = self.parent[self.parent[x]]  # path compression
             x = self.parent[x]
         return x
 
-    def union(self, a: int, b: int):
-        self.parent[self.find(a)] = self.find(b)
+    def union(self, x: int, y: int):
+        rx, ry = self.find(x), self.find(y)
+        if rx == ry:
+            return
+        if self.rank[rx] < self.rank[ry]:
+            rx, ry = ry, rx
+        self.parent[ry] = rx
+        if self.rank[rx] == self.rank[ry]:
+            self.rank[rx] += 1
+
+    def remove(self, j: int):
+        """
+        Detaches j from its group by making it its own root.
+        All other members of the group are unaffected.
+        """
+        self.parent[j] = j  # j becomes its own isolated root
+        self.rank[j] = 0
+        self.removed.add(j)
+
+    def connected(self, x: int, y: int) -> bool:
+        if x in self.removed or y in self.removed:
+            return False
+        return self.find(x) == self.find(y)
 
 
 def generate_square_edges(
