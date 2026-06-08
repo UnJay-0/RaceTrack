@@ -6,7 +6,7 @@ from src.state import State, States
 from src.track import FINISH, GRASS, OBSTACLE, Position, Track
 from src.vector import Vector
 
-MAX_STEPS_FACTOR = 80
+MAX_STEPS_FACTOR = 100
 
 GRASS_PENALTY = 1000.0
 REVISIT_WEIGHT = 10.0
