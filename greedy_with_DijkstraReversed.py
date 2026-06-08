@@ -4,8 +4,9 @@ import heapq
 
 
 INF = 10**9
-MAX_STEPS_FACTOR = 80
+MAX_STEPS_FACTOR = 100
 REVISIT_WEIGHT = 10.0
+TURN_WEIGHT = 0.15
 DIAGONAL_WEIGHT = 0.05
 
 
@@ -293,7 +294,7 @@ def greedy_unit_score(track, current_state, next_state, reverse_dist, visit_coun
         score += next_h - current_h + 1.0
 
     turn_amount = abs(nvx - vx) + abs(nvy - vy)
-    score += turn_amount
+    score += TURN_WEIGHT * turn_amount
 
     if nvx != 0 and nvy != 0:
         score += DIAGONAL_WEIGHT
