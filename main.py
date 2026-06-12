@@ -40,6 +40,8 @@ if __name__ == "__main__":
                 lookahead_steps=lookahead,
                 obstacles=False,
             )
+            if new_path is None:
+                continue
             if path_length >= len(new_path):
                 path_length = len(new_path)
                 path = new_path
