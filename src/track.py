@@ -120,15 +120,13 @@ class Track:
     ) -> bool:
         vx_prime, vy_prime = current.get_point()
         vx_second, vy_second = next.get_point()
-        vx_second += vx_prime
-        vy_second += vy_prime
 
         if position.content == OBSTACLE:
             return False
         if self.get_position((next_position.x, next_position.y)).content == OBSTACLE:
             return False
 
-        if position.content == GRASS and next.magnitude > 1:
+        if position.content == GRASS:
             if abs(vx_prime) >= 2 and not (vx_second - vx_prime) * sign(vx_prime) < 0:
                 return False
             if abs(vy_prime) >= 2 and not (vy_second - vy_prime) * sign(vy_prime) < 0:
