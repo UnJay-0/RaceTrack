@@ -1,15 +1,20 @@
 import sys
+from pathlib import Path
 
 from src.construction.rdasw import Rdasw
 from src.construction.rdgreedy import RdGreedy
-from src.improvement.evolutionary import EvolutionaryAlgo
+# from src.improvement.evolutionary import EvolutionaryAlgo
 from src.state import States
 from src.track import Track
 
 
 def write_csv(track: Track, path: States, filename: str, type: str = "a"):
     height, _ = track.get_boundaries()
-    with open(f"output/track_{filename.split('_')[1]}/{type}/{filename}", "w") as f:
+
+    out_dir = Path("output") / f"track_{filename.split('_')[1]}" / type
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(out_dir / filename, "w") as f:
         for state in path:
             f.write(f"{state.position.x},{height - 1 - state.position.y}\n")
 
@@ -50,19 +55,19 @@ if __name__ == "__main__":
         print("No path found")
         sys.exit(1)
 
-    output_file = track_file.replace(".t", "_trip.csv")
 
-    write_csv(track, path, output_file.split("/")[1], construction_type)
+    output_filename = Path(track_file).name.replace(".t", "_trip.csv")
+    write_csv(track, path, output_filename, construction_type)
 
-    improver = EvolutionaryAlgo(track, corner_grouping_threshold=4, gate_length=2)
-    improved_path = improver.improve(path)
+    # improver = EvolutionaryAlgo(track, corner_grouping_threshold=4, gate_length=2)
+    # improved_path = improver.improve(path)
 
-    if not improved_path:
-        print("No improved path found, using construction path")
-        improved_path = path
-        sys.exit(1)
+    # if not improved_path:
+    #     print("No improved path found, using construction path")
+    #     improved_path = path
+    #     sys.exit(1)
 
-    write_csv(track, improved_path, output_file.split("/")[1], "improved")
+    # write_csv(track, improved_path, output_file.split("/")[1], "improved")
 
-    print("Trip written to:", output_file)
-    print("Path length:", len(improved_path))
+    # print("Trip written to:", output_file)
+    # print("Path length:", len(improved_path))
