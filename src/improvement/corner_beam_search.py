@@ -160,9 +160,4 @@ def optimize_corner_path(
         candidates.sort(key=lambda x: x[0])
         beam = candidates[:beam_width]
 
-    # No path reached the exit gate → return best non-dead-end partial path
-    if beam:
-        viable = [path for _, path in beam if len(path[-1].generate_moves(track)) >= 6]
-        candidates_to_rank = viable if viable else [path for _, path in beam]
-        return States(max(candidates_to_rank, key=lambda p: evaluate_corner(p, apex)))
     return None
