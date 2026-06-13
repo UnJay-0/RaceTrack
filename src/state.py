@@ -104,9 +104,7 @@ class States:
             return True
         if not isinstance(other, States):
             return NotImplemented
-        if len(self.states) != len(other.states):
-            return False
-        return set(self.states) == set(other.states)
+        return self.states == other.states
 
     def __hash__(self) -> int:
         return hash(tuple(self.states))
