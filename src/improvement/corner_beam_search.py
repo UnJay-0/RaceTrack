@@ -132,9 +132,9 @@ def optimize_corner_path(
                             len(next_state.generate_moves(track)) >= 6
                             and next_state.vector.magnitude <= 5
                         ):
-                            print(
-                                f"\n{next_state} - {len(next_state.generate_moves(track))} - \n {next_state.generate_moves(track)}"
-                            )
+                            # print(
+                            #     f"\n{next_state} - {len(next_state.generate_moves(track))} - \n {next_state.generate_moves(track)}"
+                            # )
                             completed.append(path + [next_state])
                         continue
 

@@ -28,18 +28,18 @@ class EvolutionaryAlgo:
         relevant_corners = [
             corner for corner in self.corners if corner.is_relevant(path_positions)
         ]
-        self.track.write_track_with_corners(relevant_corners)
-        for corner in relevant_corners:
-            gates = corner.get_corner_gates(self.track)
-            print(f"Corner apex={corner.get_apex()}: gates = {gates}")
+        # self.track.write_track_with_corners(relevant_corners)
+        # for corner in relevant_corners:
+        #     gates = corner.get_corner_gates(self.track)
+        #     print(f"Corner apex={corner.get_apex()}: gates = {gates}")
         is_line_sector = True
         solution_paths: list[States] = [States([path[0]])]
-        print(len(path))
+        # print(len(path))
         crossed_gates = set()
         for i in range(len(path)-1):
             current_pos: Position = path[i].position
             if current_pos.is_finish():
-                print(len(solution_paths))
+                # print(len(solution_paths))
                 solution_paths = self._mutate_to_finish(solution_paths)
                 if len(solution_paths) == 0:
                     return None
@@ -53,26 +53,26 @@ class EvolutionaryAlgo:
                 # print(gate)
                 if gate and gate not in crossed_gates:
                     crossed_gates.add(gate)
-                    print(
-                        f"gate crossed at step {i}, state: {path[i]}, next: {path[i + 1]}"
-                    )
+                    # print(
+                    #     f"gate crossed at step {i}, state: {path[i]}, next: {path[i + 1]}"
+                    # )
                     if is_line_sector:
-                        print("\nentry gate crossed")
+                        # print("\nentry gate crossed")
                         # Generate N solution path with different corner entry
                         # to evaluate at the end of the corner
-                        print(f"evaluating {len(solution_paths)} paths: ")
-                        for sol_path in solution_paths:
-                            print(sol_path)
+                        # print(f"evaluating {len(solution_paths)} paths: ")
+                        # for sol_path in solution_paths:
+                        #     print(sol_path)
                         solution_paths = self._mutate_line(solution_paths, gate)
                         if not solution_paths:
                             return None
                         is_line_sector = False
                     else:
-                        print("\nexit gate crossed")
-                        # Complete the N solution generated with corner performed
-                        print(f"evaluating {len(solution_paths)} paths: ")
-                        for sol_path in solution_paths:
-                            print(sol_path)
+                        # print("\nexit gate crossed")
+                        # # Complete the N solution generated with corner performed
+                        # print(f"evaluating {len(solution_paths)} paths: ")
+                        # for sol_path in solution_paths:
+                        #     print(sol_path)
                         solution_paths = self._mutate_corner(
                             solution_paths, corner, gate
                         )
@@ -87,13 +87,13 @@ class EvolutionaryAlgo:
         return self._select_best(solution_paths)
 
     def _mutate_line(self, paths_to_mutate: list[States], gate, n=7):
-        print("#" * 50 + " MUTATE LINE " + "#" * 50)
+        # print("#" * 50 + " MUTATE LINE " + "#" * 50)
         paths = set()
         negate_set = set()
         for path in paths_to_mutate:
             if path[-1] in negate_set:
                 continue
-            print(f"mutating path: \n{path}\n")
+            # print(f"mutating path: \n{path}\n")
             temp_track = self.track.deepcopy()
             temp_track.change_start(
                 temp_track.get_position(path[-1].position.get_coordinates())
@@ -110,16 +110,16 @@ class EvolutionaryAlgo:
             if not gate_candidates:
                 continue
 
-            print(f"corner entries: {gate_candidates}")
+            # print(f"corner entries: {gate_candidates}")
 
             temp_track.change_finish_positions(gate_candidates)
-            print(f"On track: \n{temp_track}")
+            # print(f"On track: \n{temp_track}")
             speed_limit = 2
             lookahead = LOOKAHEAD_STEPS
             for _ in range(n):
                 heuristic = RdGreedy(temp_track)
-                print(f"using speed limit: {speed_limit}")
-                print(f"using lookahead: {lookahead}")
+                # print(f"using speed limit: {speed_limit}")
+                # print(f"using lookahead: {lookahead}")
                 sol_path = heuristic.greedy_path_constructor(
                     False, path[-1].vector, negate_set, speed_limit, lookahead,
                 )

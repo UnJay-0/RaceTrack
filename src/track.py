@@ -348,6 +348,7 @@ class Corner:
 
     def get_corner_gates(self, track: Track, track_width: int = 5):
         gate_pos_1, gate_pos_2 = self._gate_anchor_pair()
+        apex = self.get_apex()
         gate_1 = []
         gate_2 = []
         for gates in [(gate_pos_1, gate_1), (gate_pos_2, gate_2)]:
@@ -373,6 +374,15 @@ class Corner:
                 direction = (-1, direction[1])
             elif w_blocked:
                 direction = (+1, direction[1])
+
+            if direction == (0, 0):
+                dx = gate_pos.x - apex.x
+                dy = gate_pos.y - apex.y
+
+                if abs(dx) >= abs(dy):
+                    direction = (1 if dx >= 0 else -1, 0)
+                else:
+                    direction = (0, 1 if dy >= 0 else -1)
 
             gate = gates[1]
             gate.append(
