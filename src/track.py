@@ -530,8 +530,8 @@ class Position:
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
     def __hash__(self) -> int:
-        return hash((self.x, self.y, self.content))
-
+        return hash((self.x, self.y))
+    
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, Position):
             return NotImplemented
@@ -540,9 +540,9 @@ class Position:
     def __eq__(self, other: object) -> bool:
         if other is self:
             return True
-        if type(other) is not Position:
+        if not isinstance(other, Position):
             return NotImplemented
-        return (self.x, self.y) == (other.x, other.y) and self.content == other.content
+        return (self.x, self.y) == (other.x, other.y)
 
     def __repr__(self) -> str:
         return f"[{self.x} - {self.y} - {self.content}]"
