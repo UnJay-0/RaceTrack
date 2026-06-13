@@ -330,9 +330,24 @@ class Corner:
     def is_relevant(self, path: list[Position]) -> bool:
         return self.path_crossed_gate(path)
 
+    def _gate_anchor_pair(self) -> tuple[Position, Position]:
+        if len(self.positions) == 1:
+            return self.positions[0], self.positions[0]
+
+        best_pair = (self.positions[0], self.positions[-1])
+        best_dist = -1.0
+
+        for i, a in enumerate(self.positions):
+            for b in self.positions[i + 1:]:
+                d = a.get_distance_to(b)
+                if d > best_dist:
+                    best_dist = d
+                    best_pair = (a, b)
+
+        return best_pair
+
     def get_corner_gates(self, track: Track, track_width: int = 5):
-        gate_pos_1 = self.positions[0]
-        gate_pos_2 = self.positions[-1]
+        gate_pos_1, gate_pos_2 = self._gate_anchor_pair()
         gate_1 = []
         gate_2 = []
         for gates in [(gate_pos_1, gate_1), (gate_pos_2, gate_2)]:
