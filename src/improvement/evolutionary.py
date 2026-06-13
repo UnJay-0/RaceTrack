@@ -36,7 +36,7 @@ class EvolutionaryAlgo:
         solution_paths: list[States] = [States([path[0]])]
         print(len(path))
         crossed_gates = set()
-        for i in range(len(path)):
+        for i in range(len(path)-1):
             current_pos: Position = path[i].position
             if current_pos.is_finish():
                 print(len(solution_paths))
@@ -64,6 +64,8 @@ class EvolutionaryAlgo:
                         for sol_path in solution_paths:
                             print(sol_path)
                         solution_paths = self._mutate_line(solution_paths, gate)
+                        if not solution_paths:
+                            return None
                         is_line_sector = False
                     else:
                         print("\nexit gate crossed")
@@ -77,6 +79,10 @@ class EvolutionaryAlgo:
                         is_line_sector = True
                         if len(solution_paths) == 0:
                             return None
+
+        solution_paths = self._mutate_to_finish(solution_paths)
+        if not solution_paths:
+            return None
 
         return self._select_best(solution_paths)
 
