@@ -164,18 +164,18 @@ class RdGreedy(Heuristic):
 
     # ── constructor ────────────────────────────────────────────────────
     def greedy_path_constructor(
-    self,
-    force_unit: bool = True,
-    starting_vector: Vector = Vector(0, 0.0),
-    blocked_states_to_add: set | None = None,
-    speed_limit: float | None = FINISH_SPEED_LIMIT,
-    lookahead_steps: int = LOOKAHEAD_STEPS,
-    obstacles: bool = True,
+        self,
+        force_unit: bool = True,
+        starting_vector: Vector = Vector(0, 0.0),
+        blocked_states_to_add: set | None = None,
+        speed_limit: float | None = FINISH_SPEED_LIMIT,
+        lookahead_steps: int = LOOKAHEAD_STEPS,
+        obstacles: bool = True,
     ) -> States | None:
         state = State(self.track.start_pos, starting_vector)
         path = [state]
         visit_count = {state.position: 1}
-
+        previous_state_index = -1
         height, width = self.track.get_boundaries()
         max_steps = MAX_STEPS_FACTOR * height * width
 

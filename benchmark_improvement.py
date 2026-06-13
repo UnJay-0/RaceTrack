@@ -34,8 +34,8 @@ SYSTEM_SPECS_JSON = BENCHMARK_DIR / "system_specs.json"
 CONSTRUCTION_TYPE = "g"
 IMPROVED_TYPE = "improved"
 
-RUNS_PER_TRACK = 10
-SOLVER_TIMEOUT_SEC = 300
+RUNS_PER_TRACK = 3
+SOLVER_TIMEOUT_SEC = 1800
 VISUALISE_TIMEOUT_SEC = 90
 PDFLATEX_TIMEOUT_SEC = 90
 CLEAN_TRIPS_BEFORE_RUN = True
@@ -782,6 +782,8 @@ def main() -> int:
     print(f"pdflatex:         {shutil.which('pdflatex') or 'missing'}")
     print("Tracks:")
 
+    tracks.reverse()  # Show in natural order with track_1 before track_10
+
     for track in tracks:
         print(f"  - {track}")
 
@@ -791,9 +793,9 @@ def main() -> int:
 
     for track_file in tracks:
 
-        if track_file.name == "track_0circular.t":
-            print(f"Skipping {track_file.name}")
-            continue
+        # if track_file.name == "track_0circular.t":
+        #     print(f"Skipping {track_file.name}")
+        #     continue
 
         track_dir = SOLUTIONS_DIR / track_file.stem
 
