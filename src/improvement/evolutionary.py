@@ -121,18 +121,12 @@ class EvolutionaryAlgo:
                 print(f"using speed limit: {speed_limit}")
                 print(f"using lookahead: {lookahead}")
                 sol_path = heuristic.greedy_path_constructor(
-                    False, path[-1].vector, set(), speed_limit, lookahead
+                    False, path[-1].vector, negate_set, speed_limit, lookahead,
                 )
                 if not sol_path:
                     negate_set.add(path[-1])
-                    pass
                 else:
-                    # if speed_limit is None:
-                    #     speed_limit = sol_path[-1].vector.magnitude
-                    print(f"\nFound path: \n{sol_path}")
-                    # print(negate_set)
                     result = path.concat(States(sol_path[1:]))
-                    print(result in paths)
                     paths.add(result)
                 speed_limit += 1
                 if speed_limit >= 4:
