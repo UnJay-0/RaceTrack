@@ -1,0 +1,13 @@
+{
+  "timestamp_local": "2026-06-13T19:56:17+02:00",
+  "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+  "system": "Linux",
+  "release": "6.17.0-35-generic",
+  "machine": "x86_64",
+  "processor": "x86_64",
+  "python_version": "3.14.3 (main, Mar 10 2026, 18:18:50) [Clang 21.1.4 ]",
+  "python_executable": "/home/sviktoros/Documents/TU/MP/project/RaceTrack/.venv/bin/python",
+  "cpu_count_logical": 16,
+  "memory_total_bytes": 14443687936,
+  "memory_total_gib": 13.452
+}

@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from src.construction.rdasw import Rdasw
 from src.construction.rdgreedy import RdGreedy
@@ -9,7 +10,11 @@ from src.track import Track
 
 def write_csv(track: Track, path: States, filename: str, type: str = "a"):
     height, _ = track.get_boundaries()
-    with open(f"output/track_{filename.split('_')[1]}/{type}/{filename}", "w") as f:
+
+    out_dir = Path("output") / f"track_{filename.split('_')[1]}" / type
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(out_dir / filename, "w") as f:
         for state in path:
             f.write(f"{state.position.x},{height - 1 - state.position.y}\n")
 
@@ -33,40 +38,52 @@ if __name__ == "__main__":
     elif construction_type == "g":
         greedy = RdGreedy(track)
         path_length = 10e9
-        lookahead = 10
-        while True:
+        for lookahead in range(11):
             new_path = greedy.greedy_path_constructor(
                 force_unit=True,
                 speed_limit=None,
                 lookahead_steps=lookahead,
                 obstacles=False,
             )
-            if path_length <= len(new_path):
-                print(path_length, lookahead)
-                break
-            else:
+            if new_path is None:
+                continue
+            if path_length >= len(new_path):
                 path_length = len(new_path)
                 path = new_path
-                lookahead -= 1
 
     if not path:
         print("No path found")
         sys.exit(1)
 
-    output_file = track_file.replace(".t", "_trip.csv")
 
-    write_csv(track, path, output_file.split("/")[1], construction_type)
+    output_filename = Path(track_file).name.replace(".t", "_trip.csv")
+    write_csv(track, path, output_filename, construction_type)
 
-    improver = EvolutionaryAlgo(track, corner_grouping_threshold=3, gate_length=7)
-    path = improver.improve(path)
+    improvement_status = "not_run"
+    improved_path = None
 
-    if not path:
-        print("No improved path found")
-        sys.exit(1)
+    try:
+        improver = EvolutionaryAlgo(track, corner_grouping_threshold=4, gate_length=2)
+        candidate = improver.improve(path)
 
-    output_file = track_file.replace(".t", "_trip.csv")
+        if candidate is None:
+            improvement_status = "fallback_construction_none"
+            improved_path = path
+        elif len(candidate) <= len(path):
+            improvement_status = "improved" if len(candidate) < len(path) else "unchanged"
+            improved_path = candidate
+        else:
+            improvement_status = "fallback_construction_worse_candidate"
+            improved_path = path
 
-    write_csv(track, path, output_file.split("/")[1], "improved")
+    except Exception as exc:
+        improvement_status = f"fallback_construction_exception:{type(exc).__name__}"
+        improved_path = path
 
-    print("Trip written to:", output_file)
-    print("Path length:", len(path))
+    write_csv(track, improved_path, output_filename, "improved")
+
+    print("Construction path length:", len(path))
+    print("Construction moves:", len(path) - 1)
+    print("Improved path length:", len(improved_path))
+    print("Improved moves:", len(improved_path) - 1)
+    print("Improvement status:", improvement_status)

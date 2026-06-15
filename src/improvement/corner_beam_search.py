@@ -106,7 +106,7 @@ def optimize_corner_path(
     beam = [(0.0, [entry_state])]
     completed = []  # paths that crossed the exit gate
 
-    for step in range(max_steps):
+    for _ in range(max_steps):
         candidates = []
 
         for cum_h, path in beam:
@@ -126,13 +126,27 @@ def optimize_corner_path(
 
                 # Check exit gate crossing
                 if crossed_gate(current.position, next_state.position, exit_gate):
-                    completed.append(path + [next_state])
-                    continue
+                    if crossed_gate(current.position, next_state.position, exit_gate):
+                        # Only accept if the exit state has viable continuations
+                        if (
+                            len(next_state.generate_moves(track)) >= 6
+                            and next_state.vector.magnitude <= 5
+                        ):
+                            # print(
+                            #     f"\n{next_state} - {len(next_state.generate_moves(track))} - \n {next_state.generate_moves(track)}"
+                            # )
+                            completed.append(path + [next_state])
+                        continue
 
                 grass_cost = (
                     GRASS_PENALTY if next_state.position.content == GRASS else 0.0
                 )
-                h = step_heuristic(next_state, apex, exit_gate) + grass_cost
+                dead_end_cost = 1e4 if len(next_state.generate_moves(track)) < 3 else 0
+                h = (
+                    step_heuristic(next_state, apex, exit_gate)
+                    + grass_cost
+                    + dead_end_cost
+                )
                 candidates.append((cum_h + h, path + [next_state]))
 
         if completed:
@@ -146,10 +160,9 @@ def optimize_corner_path(
         candidates.sort(key=lambda x: x[0])
         beam = candidates[:beam_width]
 
-    # No path reached the exit gate —> return best partial path
+    # No path reached the exit gate → return best non-dead-end partial path
     if beam:
-        return max(
-            (path for _, path in beam),
-            key=lambda p: evaluate_corner(p, apex),
-        )
+        viable = [path for _, path in beam if len(path[-1].generate_moves(track)) >= 6]
+        candidates_to_rank = viable if viable else [path for _, path in beam]
+        return States(max(candidates_to_rank, key=lambda p: evaluate_corner(p, apex)))
     return None

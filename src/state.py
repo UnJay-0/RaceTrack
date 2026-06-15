@@ -42,6 +42,14 @@ class State:
             )
             if int(new_vector.magnitude) != 1:
                 continue
+
+            # vx, vy = self.vector.get_point()
+            # nvx, nvy = new_vector.get_point()
+            # if vx != 0 or vy != 0:
+            #     dot = nvx * vx + nvy * vy
+            #     if dot < 0:
+            #         continue
+
             if track.is_valid_move(
                 self.position, new_position, self.vector, new_vector
             ):
@@ -90,6 +98,16 @@ class States:
     def __iter__(self) -> State:
         for state in self.states:
             yield state
+
+    def __eq__(self, other: object) -> bool:
+        if other is self:
+            return True
+        if not isinstance(other, States):
+            return NotImplemented
+        return self.states == other.states
+
+    def __hash__(self) -> int:
+        return hash(tuple(self.states))
 
     def __len__(self):
         return len(self.states)

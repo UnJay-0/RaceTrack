@@ -28,6 +28,9 @@ CORNER_SYMBOLS.remove("T")
 CORNER_SYMBOLS.remove("S")
 CORNER_SYMBOLS.remove("F")
 APEX_SYMBOLS = list(string.digits)
+# Two symbols to distinguish entry gate cells from exit gate cells
+GATE_ENTRY_SYMBOL = "["
+GATE_EXIT_SYMBOL = "]"
 
 
 class Track:
@@ -117,15 +120,13 @@ class Track:
     ) -> bool:
         vx_prime, vy_prime = current.get_point()
         vx_second, vy_second = next.get_point()
-        vx_second += vx_prime
-        vy_second += vy_prime
 
         if position.content == OBSTACLE:
             return False
         if self.get_position((next_position.x, next_position.y)).content == OBSTACLE:
             return False
 
-        if position.content == GRASS and next.magnitude > 1:
+        if position.content == GRASS:
             if abs(vx_prime) >= 2 and not (vx_second - vx_prime) * sign(vx_prime) < 0:
                 return False
             if abs(vy_prime) >= 2 and not (vy_second - vy_prime) * sign(vy_prime) < 0:
@@ -190,47 +191,6 @@ class Track:
             positions.append(self.get_position((x, y)))
         return positions
 
-    @staticmethod
-    def farthest_point_sample(
-        positions: list[Position], n: int, on_track: bool = True
-    ) -> list[Position]:
-        """
-        Returns n positions from `positions` that are as equally
-        distributed by Euclidean distance as possible, using
-        farthest-point (maximin) sampling. O(n * |positions|)
-        """
-        positions = [
-            position for position in positions if not position.is_grass_or_obstacle()
-        ]
-        if n <= 0 or not positions:
-            return []
-        if n >= len(positions):
-            return list(positions)
-
-        # Start from the position closest to the centroid
-        # for a stable, geometry-aware seed
-        cx = sum(p.x for p in positions) / len(positions)
-        cy = sum(p.y for p in positions) / len(positions)
-        seed = min(positions, key=lambda p: (p.x - cx) ** 2 + (p.y - cy) ** 2)
-
-        selected = [seed]
-        # min_dist[i] = distance from positions[i] to its nearest selected point
-        min_dist = [p.get_distance_to(seed) for p in positions]
-
-        for _ in range(n - 1):
-            # Pick the candidate farthest from all selected points
-            farthest = max(range(len(positions)), key=lambda i: min_dist[i])
-            new_point = positions[farthest]
-            selected.append(new_point)
-
-            # Update min distances with the new point
-            for i, p in enumerate(positions):
-                d = p.get_distance_to(new_point)
-                if d < min_dist[i]:
-                    min_dist[i] = d
-
-        return selected
-
     def get_corners(self) -> list[Position]:
         corner_positions = []
         for line in self.positions:
@@ -249,6 +209,17 @@ class Track:
                 w_blocked = west.is_grass_or_obstacle()
 
                 count = sum([n_blocked, s_blocked, e_blocked, w_blocked])
+
+                # avoid corners near start or finish
+                if self.start_pos in (north, south, east, west):
+                    continue
+                if (
+                    north in self.end_positions
+                    or south in self.end_positions
+                    or east in self.end_positions
+                    or west in self.end_positions
+                ):
+                    continue
 
                 if count == 2:
                     opposite = (n_blocked and s_blocked) or (e_blocked and w_blocked)
@@ -296,13 +267,30 @@ class Track:
             apex = corner.get_apex()
 
             print(
-                f"  Region {idx + 1:>2}  body='{body_symbol}'  apex='{apex_symbol}'  "
-                f"apex_pos={apex}  size={len(corner.positions)}"
+                f"  Region {idx + 1:>2} body='{body_symbol}' apex='{apex_symbol}' "
+                f"apex_pos={apex} size={len(corner.positions)}"
             )
 
+            # Corner body cells
             for pos in corner.positions:
                 symbol_map[(pos.x, pos.y)] = body_symbol
+
+            # Apex cell (overwrites body symbol)
             symbol_map[(apex.x, apex.y)] = apex_symbol
+
+            # Gate cells — rasterise each floating-point gate segment
+            gate_entry, gate_exit = corner.corner_gates
+            for (fx0, fy0), (fx1, fy1), gate_symbol in [
+                (*gate_entry, GATE_ENTRY_SYMBOL),
+                (*gate_exit, GATE_EXIT_SYMBOL),
+            ]:
+                for cell in self.supercover_line(
+                    round(fx0), round(fy0), round(fx1), round(fy1)
+                ):
+                    if cell.content != OUT_OF_BOUND:
+                        # Gate symbol only if not already an apex/body cell
+                        if (cell.x, cell.y) not in symbol_map:
+                            symbol_map[(cell.x, cell.y)] = gate_symbol
 
         print("=" * 50)
         print(f"Track written to: {filename}\n")
@@ -327,9 +315,9 @@ class Track:
 
 
 class Corner:
-    def __init__(self, positions: list[Position], gate_length: int = 5):
+    def __init__(self, track: Track, positions: list[Position], gate_length: int = 5):
         self.positions = positions
-        self.corner_gates = self.get_corner_gates(gate_length)
+        self.corner_gates = self.get_corner_gates(track, gate_length)
 
     def append(self, position: Position):
         self.positions.append(position)
@@ -342,55 +330,79 @@ class Corner:
     def is_relevant(self, path: list[Position]) -> bool:
         return self.path_crossed_gate(path)
 
-    # def get_corner_gates(self, track_width: int = 5):
-    #     gate_pos_1 = self.positions[0]
-    #     gate_pos_2 = self.positions[-1]
+    def _gate_anchor_pair(self) -> tuple[Position, Position]:
+        if len(self.positions) == 1:
+            return self.positions[0], self.positions[0]
 
-    #     ax = gate_pos_2.x - gate_pos_1.x
-    #     ay = gate_pos_2.y - gate_pos_1.y
-    #     length = math.sqrt(ax**2 + ay**2) or 1
+        best_pair = (self.positions[0], self.positions[-1])
+        best_dist = -1.0
 
-    #     px, py = -ay / length, ax / length
+        for i, a in enumerate(self.positions):
+            for b in self.positions[i + 1:]:
+                d = a.get_distance_to(b)
+                if d > best_dist:
+                    best_dist = d
+                    best_pair = (a, b)
 
-    #     half = track_width / 2
-    #     gate_entry = (
-    #         (gate_pos_1.x - px * half, gate_pos_1.y - py * half),
-    #         (gate_pos_1.x + px * half, gate_pos_1.y + py * half),
-    #     )
-    #     gate_exit = (
-    #         (gate_pos_2.x - px * half, gate_pos_2.y - py * half),
-    #         (gate_pos_2.x + px * half, gate_pos_2.y + py * half),
-    #     )
-    #     return gate_entry, gate_exit
-    def get_corner_gates(self, track_width: int = 5):
-        gate_pos_1 = self.positions[0]
-        gate_pos_2 = self.positions[-1]
+        return best_pair
+
+    def get_corner_gates(self, track: Track, track_width: int = 5):
+        gate_pos_1, gate_pos_2 = self._gate_anchor_pair()
         apex = self.get_apex()
+        gate_1 = []
+        gate_2 = []
+        for gates in [(gate_pos_1, gate_1), (gate_pos_2, gate_2)]:
+            gate_pos = gates[0]
+            n_blocked = track.get_position(
+                (gate_pos.x, gate_pos.y + 1)
+            ).is_grass_or_obstacle()
+            s_blocked = track.get_position(
+                (gate_pos.x, gate_pos.y - 1)
+            ).is_grass_or_obstacle()
+            e_blocked = track.get_position(
+                (gate_pos.x + 1, gate_pos.y)
+            ).is_grass_or_obstacle()
+            w_blocked = track.get_position(
+                (gate_pos.x - 1, gate_pos.y)
+            ).is_grass_or_obstacle()
+            direction = (0, 0)
+            if n_blocked:
+                direction = (direction[0], -1)
+            elif s_blocked:
+                direction = (direction[0], 1)
+            if e_blocked:
+                direction = (-1, direction[1])
+            elif w_blocked:
+                direction = (+1, direction[1])
 
-        def _make_gate(
-            anchor: Position, toward: Position, half: float
-        ) -> tuple[tuple[float, float], tuple[float, float]]:
-            """
-            Gate perpendicular to the vector anchor → toward,
-            centred on anchor.
-            """
-            ax = toward.x - anchor.x
-            ay = toward.y - anchor.y
-            length = math.sqrt(ax**2 + ay**2) or 1
-            # Perpendicular to the forward direction
-            px, py = -ay / length, ax / length
-            return (
-                (anchor.x - px * half, anchor.y - py * half),
-                (anchor.x + px * half, anchor.y + py * half),
+            if direction == (0, 0):
+                dx = gate_pos.x - apex.x
+                dy = gate_pos.y - apex.y
+
+                if abs(dx) >= abs(dy):
+                    direction = (1 if dx >= 0 else -1, 0)
+                else:
+                    direction = (0, 1 if dy >= 0 else -1)
+
+            gate = gates[1]
+            gate.append(
+                (
+                    gate_pos.x,
+                    gate_pos.y,
+                )
             )
-
-        half = track_width / 2
-        gate_entry = _make_gate(gate_pos_1, apex, half)
-        gate_exit = _make_gate(gate_pos_2, apex, half)
-        return gate_entry, gate_exit
+            gate.append(
+                (
+                    gate_pos.x + direction[0] * track_width,
+                    gate_pos.y + direction[1] * track_width,
+                )
+            )
+        return tuple(gate_1), tuple(gate_2)
 
     def get_crossed_gate(
-        self, pos_1: Position, pos_2: Position
+        self,
+        pos_1: Position,
+        pos_2: Position,
     ) -> tuple[tuple[float, float], tuple[float, float]] | None:
         for gate in self.corner_gates:
             if self.step_crossed_gate(pos_1, pos_2, gate):
@@ -432,23 +444,48 @@ class Corner:
 
     @staticmethod
     def group_corner_positions(
+        track: Track,
         positions: list[Position],
         threshold: float = CORNER_GROUPING_THRESHOLD,
-        gate_legth: int = GATE_LENGTH,
+        gate_length: int = GATE_LENGTH,
     ) -> list[Corner]:
         n = len(positions)
         uf = UnionFind(n)
 
         for i in range(n):
             for j in range(i + 1, n):
-                if positions[i].get_distance_to(positions[j]) <= threshold:
+                lateral = positions[i].get_lateral_neighborhood(
+                    track, False
+                ) + positions[i].get_lateral_neighborhood(track, True)
+                diagonal = positions[i].get_diagonal_neighborhood(
+                    track, False
+                ) + positions[i].get_diagonal_neighborhood(track, True)
+                if positions[j] in lateral:
                     uf.union(i, j)
+                elif positions[j] in diagonal:
+                    if positions[j] in diagonal:
+                        other_x = track.get_position((positions[j].x, positions[i].y))
+                        other_y = track.get_position((positions[i].x, positions[j].y))
+                        if other_x.content == OBSTACLE and other_y.content == OBSTACLE:
+                            uf.remove(j)
+                        else:
+                            uf.union(i, j)
+                elif positions[i].get_distance_to(positions[j]) <= threshold:
+                    line = track.supercover_line(
+                        positions[i].x, positions[i].y, positions[j].x, positions[j].y
+                    )
+                    union = True
+                    for pos in line:
+                        if pos.content == OBSTACLE:
+                            union = False
+                    if union:
+                        uf.union(i, j)
 
         groups: dict[int, list[Position]] = defaultdict(list)
         for i, pos in enumerate(positions):
             groups[uf.find(i)].append(pos)
 
-        return [Corner(group, gate_legth) for group in groups.values()]
+        return [Corner(track, group, gate_length) for group in groups.values()]
 
     def __repr__(self) -> str:
         return self.positions.__str__()
@@ -518,8 +555,8 @@ class Position:
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
     def __hash__(self) -> int:
-        return hash((self.x, self.y, self.content))
-
+        return hash((self.x, self.y))
+    
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, Position):
             return NotImplemented
@@ -528,9 +565,9 @@ class Position:
     def __eq__(self, other: object) -> bool:
         if other is self:
             return True
-        if type(other) is not Position:
+        if not isinstance(other, Position):
             return NotImplemented
-        return (self.x, self.y) == (other.x, other.y) and self.content == other.content
+        return (self.x, self.y) == (other.x, other.y)
 
     def __repr__(self) -> str:
         return f"[{self.x} - {self.y} - {self.content}]"
@@ -544,9 +581,7 @@ if __name__ == "__main__":
     output_file = sys.argv[2] if len(sys.argv) > 2 else "track_corners.t"
 
     track = Track(track_file)
-    corners = Corner.group_corner_positions(
-        track.get_corners(), CORNER_GROUPING_THRESHOLD
-    )
+    corners = Corner.group_corner_positions(track, track.get_corners(), 4, 2)
 
     corners = [corner for corner in corners if len(corner.positions) > 1]
 

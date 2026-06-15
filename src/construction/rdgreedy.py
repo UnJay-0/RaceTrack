@@ -6,15 +6,12 @@ from src.state import State, States
 from src.track import FINISH, GRASS, OBSTACLE, Position, Track
 from src.vector import Vector
 
-MAX_STEPS_FACTOR = 80
+MAX_STEPS_FACTOR = 100
 
 GRASS_PENALTY = 1000.0
-TERRAIN_WEIGHT = 0.25
-OBSTACLE_WEIGHT = 1.0
-REVISIT_WEIGHT = 12.0
-NO_PROGRESS_WEIGHT = 4.0
+REVISIT_WEIGHT = 10.0
 TURN_WEIGHT = 0.15
-LOOKAHEAD_STEPS = 4
+LOOKAHEAD_STEPS = 2
 LOOKAHEAD_WEIGHT = 1
 
 # Penalties fade to zero within this many reverse-Dijkstra steps of the finish
@@ -22,7 +19,7 @@ FINISH_FADE_RADIUS = 15
 # Speed limit applied within FINISH_FADE_RADIUS of the finish.
 # Set to None (or math.inf) to disable entirely.
 FINISH_SPEED_LIMIT: float | None = 2.0
-FINISH_SPEED_PENALTY = 1e6  # large enough to always lose to a legal move
+FINISH_SPEED_PENALTY = 1e4  # large enough to always lose to a legal move
 
 
 class RdGreedy(Heuristic):
@@ -51,20 +48,6 @@ class RdGreedy(Heuristic):
             cost += Heuristic.terrain_cost(pos)
         return cost
 
-    # def obstacle_proximity_penalty(self, pos: Position) -> float:
-    #     height, width = self.track.get_boundaries()
-    #     penalty = 0.0
-    #     for dx in [-1, 0, 1]:
-    #         for dy in [-1, 0, 1]:
-    #             if dx == 0 and dy == 0:
-    #                 continue
-    #             nx = pos.x + dx
-    #             ny = pos.y + dy
-    #             if nx < 0 or ny < 0 or nx >= width or ny >= height:
-    #                 penalty += 1.5
-    #             elif self.track.get_position((nx, ny)).is_grass_or_obstacle():
-    #                 penalty += 1.0
-    #     return penalty
     def obstacle_proximity_penalty(self, pos: Position, speed: float = 1.0) -> float:
         height, width = self.track.get_boundaries()
         penalty = 0.0
@@ -80,7 +63,7 @@ class RdGreedy(Heuristic):
                 ny = pos.y + dy
                 if nx < 0 or ny < 0 or nx >= width or ny >= height:
                     penalty += 1.5 / dist
-                elif self.track.get_position((nx, ny)).content == OBSTACLE:
+                elif self.track.get_position((nx, ny)).is_grass_or_obstacle():
                     penalty += 1.0 / dist  # closer obstacles hurt more
         return penalty
 
@@ -147,18 +130,10 @@ class RdGreedy(Heuristic):
 
         score = next_h
 
-        # score += TERRAIN_WEIGHT * self.move_cost(
-        #     current_state.position, next_state.position
-        # )
-
         # Wall-avoidance penalties — attenuated near finish
         if obstacles:
-            score += (
-                attenuation
-                * OBSTACLE_WEIGHT
-                * self.obstacle_proximity_penalty(
-                    next_state.position, next_state.vector.magnitude - 2
-                )
+            score += attenuation * self.obstacle_proximity_penalty(
+                next_state.position, next_state.vector.magnitude - 2
             )
         score += (
             attenuation
@@ -171,7 +146,7 @@ class RdGreedy(Heuristic):
         score += REVISIT_WEIGHT * visit_count.get(next_state.position, 0)
 
         if next_h >= current_h:
-            score += NO_PROGRESS_WEIGHT * (next_h - current_h + 1.0)
+            score += next_h - current_h + 1.0
 
         if next_state.position.content == GRASS:
             score += GRASS_PENALTY * attenuation
@@ -188,12 +163,11 @@ class RdGreedy(Heuristic):
         return score
 
     # ── constructor ────────────────────────────────────────────────────
-
     def greedy_path_constructor(
         self,
         force_unit: bool = True,
         starting_vector: Vector = Vector(0, 0.0),
-        blocked_states_to_add: set = set(),
+        blocked_states_to_add: set | None = None,
         speed_limit: float | None = FINISH_SPEED_LIMIT,
         lookahead_steps: int = LOOKAHEAD_STEPS,
         obstacles: bool = True,
@@ -201,12 +175,11 @@ class RdGreedy(Heuristic):
         state = State(self.track.start_pos, starting_vector)
         path = [state]
         visit_count = {state.position: 1}
-
+        previous_state_index = -1
         height, width = self.track.get_boundaries()
         max_steps = MAX_STEPS_FACTOR * height * width
-        previous_state_index = -1
-        blocked_states = set()
-        blocked_states.union(blocked_states_to_add)
+
+        blocked_states = set(blocked_states_to_add or set())
         for step in range(1, max_steps + 1):
             pos = state.position
 
@@ -216,6 +189,7 @@ class RdGreedy(Heuristic):
                 return States(path)
 
             candidates = []
+
             next_states = (
                 state.generate_unit_moves(self.track)
                 if force_unit
@@ -224,12 +198,6 @@ class RdGreedy(Heuristic):
 
             for next_state in next_states:
                 if next_state in blocked_states:
-                    continue
-                next_pos = next_state.position
-
-                if not self.track.is_valid_move(
-                    pos, next_pos, state.vector, next_state.vector
-                ):
                     continue
 
                 score = self.greedy_score(
