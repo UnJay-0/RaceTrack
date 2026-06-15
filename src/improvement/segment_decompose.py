@@ -1,7 +1,8 @@
+import math
+
 from src.construction.rdgreedy import LOOKAHEAD_STEPS, RdGreedy
 from src.improvement.corner_beam_search import optimize_corner_path
 from src.state import State, States
-from src.vector import Vector
 from src.track import (
     CORNER_GROUPING_THRESHOLD,
     GATE_LENGTH,
@@ -9,9 +10,10 @@ from src.track import (
     Position,
     Track,
 )
-import math
+from src.vector import Vector
 
-class EvolutionaryAlgo:
+
+class SegmentDecompose:
     def __init__(
         self,
         track: Track,
@@ -22,85 +24,6 @@ class EvolutionaryAlgo:
         self.corners = Corner.group_corner_positions(
             track, self.track.get_corners(), corner_grouping_threshold, gate_length
         )
-
-    # def improve(self, path: States) -> States | None:
-    #     # print(path)
-    #     path_positions = path.get_positions()
-    #     relevant_corners = [
-    #         corner for corner in self.corners if corner.is_relevant(path_positions)
-    #     ]
-    #     # self.track.write_track_with_corners(relevant_corners)
-    #     # for corner in relevant_corners:
-    #     #     gates = corner.get_corner_gates(self.track)
-    #     #     print(f"Corner apex={corner.get_apex()}: gates = {gates}")
-    #     is_line_sector = True
-    #     solution_paths: list[States] = [States([path[0]])]
-    #     # print(len(path))
-    #     crossed_gates = set()
-    #     for i in range(len(path)-1):
-    #         current_pos: Position = path[i].position
-    #         if current_pos.is_finish():
-    #             # print(len(solution_paths))
-    #             solution_paths = self._mutate_to_finish(solution_paths)
-    #             if len(solution_paths) == 0:
-    #                 return None
-    #             continue
-    #         next_pos: Position = path[i + 1].position
-    #         for corner in relevant_corners:
-    #             gate: tuple[tuple[float, float], tuple[float, float]] = (
-    #                 corner.get_crossed_gate(current_pos, next_pos)
-    #             )
-    #             # print(corner.get_corner_gates())
-    #             # print(gate)
-    #             if gate and gate not in crossed_gates:
-    #                 crossed_gates.add(gate)
-    #                 # print(
-    #                 #     f"gate crossed at step {i}, state: {path[i]}, next: {path[i + 1]}"
-    #                 # )
-    #                 if is_line_sector:
-    #                     # print("\nentry gate crossed")
-    #                     # Generate N solution path with different corner entry
-    #                     # to evaluate at the end of the corner
-    #                     # print(f"evaluating {len(solution_paths)} paths: ")
-    #                     # for sol_path in solution_paths:
-    #                     #     print(sol_path)
-    #                     solution_paths = self._mutate_line(solution_paths, gate)
-    #                     if not solution_paths:
-    #                         return None
-    #                     is_line_sector = False
-    #                 else:
-    #                     # print("\nexit gate crossed")
-    #                     # # Complete the N solution generated with corner performed
-    #                     # print(f"evaluating {len(solution_paths)} paths: ")
-    #                     # for sol_path in solution_paths:
-    #                     #     print(sol_path)
-    #                     solution_paths = self._mutate_corner(
-    #                         solution_paths, corner, gate
-    #                     )
-    #                     is_line_sector = True
-    #                     if len(solution_paths) == 0:
-    #                         return None
-
-    #     construction_cleanup = self._skip_blobs_zigzags_loops(path)
-
-    #     solution_paths = self._mutate_to_finish(solution_paths)
-    #     if not solution_paths:
-    #         return construction_cleanup
-
-    #     best = self._select_best(solution_paths)
-    #     best = self._skip_blobs_zigzags_loops(best)
-
-    #     if len(best) <= len(construction_cleanup):
-    #         return best
-
-    #     return construction_cleanup
-
-
-    #     # solution_paths = self._mutate_to_finish(solution_paths)
-    #     # if not solution_paths:
-    #     #     return None
-
-    #     # return self._shortcut_path(self._select_best(solution_paths))
 
     def improve(self, path: States) -> States | None:
         path_positions = path.get_positions()
@@ -127,7 +50,7 @@ class EvolutionaryAlgo:
                     crossed_gates.add(gate)
 
                     if is_line_sector:
-                        solution_paths = self._mutate_line(solution_paths, gate)
+                        solution_paths = self._repair_line(solution_paths, gate)
 
                         if not solution_paths:
                             return construction_cleanup
@@ -135,7 +58,7 @@ class EvolutionaryAlgo:
                         is_line_sector = False
 
                     else:
-                        solution_paths = self._mutate_corner(
+                        solution_paths = self._repair_corner(
                             solution_paths,
                             corner,
                             gate,
@@ -146,7 +69,7 @@ class EvolutionaryAlgo:
 
                         is_line_sector = True
 
-        solution_paths = self._mutate_to_finish(solution_paths)
+        solution_paths = self._repair_to_finish(solution_paths)
 
         if not solution_paths:
             return construction_cleanup
@@ -159,11 +82,11 @@ class EvolutionaryAlgo:
 
         return construction_cleanup
 
-    def _mutate_line(self, paths_to_mutate: list[States], gate, n=7):
-        # print("#" * 50 + " MUTATE LINE " + "#" * 50)
+    def _repair_line(self, paths_to_repair: list[States], gate, n=7):
+        # print("#" * 50 + " repair LINE " + "#" * 50)
         paths = set()
         negate_set = set()
-        for path in paths_to_mutate:
+        for path in paths_to_repair:
             if path[-1] in negate_set:
                 continue
             # print(f"mutating path: \n{path}\n")
@@ -194,7 +117,11 @@ class EvolutionaryAlgo:
                 # print(f"using speed limit: {speed_limit}")
                 # print(f"using lookahead: {lookahead}")
                 sol_path = heuristic.greedy_path_constructor(
-                    False, path[-1].vector, negate_set, speed_limit, lookahead,
+                    False,
+                    path[-1].vector,
+                    negate_set,
+                    speed_limit,
+                    lookahead,
                 )
                 if not sol_path:
                     negate_set.add(path[-1])
@@ -206,27 +133,27 @@ class EvolutionaryAlgo:
                     lookahead += 1
         return list(paths)
 
-    def _mutate_corner(self, paths_to_mutate, corner, exit_gate):
-        print("#" * 50 + " MUTATE CORNER " + "#" * 50)
+    def _repair_corner(self, paths_to_repair, corner, exit_gate):
+        # print("#" * 50 + " REPAIR CORNER " + "#" * 50)
         output = []
-        for path in paths_to_mutate:
+        for path in paths_to_repair:
             entry_state = path[-1]
 
-            print(f"\nmutating path: \n{path}\n")
+            # print(f"\nrepairing path: \n{path}\n")
             corner_path = optimize_corner_path(
                 self.track, entry_state, corner.get_apex(), exit_gate
             )
             if corner_path:
                 paths = States(corner_path[1:])
-                print(f"Found path: \n{paths}")
+                # print(f"Found path: \n{paths}")
                 output.append(path.concat(paths))
         return output
 
-    def _mutate_to_finish(self, paths_to_mutate: list[States]):
-        print("#" * 50 + " MUTATE TO FINISH " + "#" * 50)
+    def _repair_to_finish(self, paths_to_repair: list[States]):
+        # print("#" * 50 + " REPAIR TO FINISH " + "#" * 50)
         paths: list[States] = []
         temp_track = self.track.deepcopy()
-        for path in paths_to_mutate:
+        for path in paths_to_repair:
             temp_track.change_start(
                 temp_track.get_position(path[-1].position.get_coordinates())
             )
@@ -235,13 +162,13 @@ class EvolutionaryAlgo:
                 False, path[-1].vector, speed_limit=None
             )
             if sol_path:
-                print(f"Found path: \n{sol_path}")
+                # print(f"Found path: \n{sol_path}")
                 paths.append(path.concat(States(sol_path[1:])))
         return paths
 
     def _select_best(self, solutions: list[States]) -> States:
         return sorted(solutions, key=lambda solution: len(solution))[0]
-        
+
     def _shortcut_path(self, path: States) -> States:
 
         if len(path) <= 2:
@@ -254,9 +181,7 @@ class EvolutionaryAlgo:
         parent: dict[tuple[int, int, int], tuple[int, int, int] | None] = {
             start_key: None
         }
-        parent_state: dict[tuple[int, int, int], State] = {
-            start_key: path[0]
-        }
+        parent_state: dict[tuple[int, int, int], State] = {start_key: path[0]}
 
         final_key = None
         head = 0
@@ -502,13 +427,9 @@ class EvolutionaryAlgo:
         parent: dict[
             tuple[int, int, int, int],
             tuple[int, int, int, int] | None,
-        ] = {
-            start_key: None
-        }
+        ] = {start_key: None}
 
-        parent_state: dict[tuple[int, int, int, int], State] = {
-            start_key: entry_state
-        }
+        parent_state: dict[tuple[int, int, int, int], State] = {start_key: entry_state}
 
         current_layer = [start_key]
         final_key = None
@@ -558,11 +479,7 @@ class EvolutionaryAlgo:
                     )
                     speed = max(next_state.vector.magnitude, 1e-9)
 
-                    score = (
-                        distance_to_exit
-                        + 0.25 * corridor_distance
-                        + 0.05 / speed
-                    )
+                    score = distance_to_exit + 0.25 * corridor_distance + 0.05 / speed
 
                     old = candidate_by_key.get(next_key)
 
@@ -589,7 +506,9 @@ class EvolutionaryAlgo:
 
             current_layer = []
 
-            for next_key, (_, previous_key, next_state) in ranked_candidates[:beam_width]:
+            for next_key, (_, previous_key, next_state) in ranked_candidates[
+                :beam_width
+            ]:
                 parent[next_key] = previous_key
                 parent_state[next_key] = next_state
                 current_layer.append(next_key)
@@ -636,11 +555,7 @@ class EvolutionaryAlgo:
         j: int,
         bridge: States,
     ) -> States:
-        return States(
-            path.states[:i]
-            + bridge.states
-            + path.states[j + 1:]
-        )
+        return States(path.states[:i] + bridge.states + path.states[j + 1 :])
 
     @staticmethod
     def _point_to_segment_distance(
@@ -664,4 +579,3 @@ class EvolutionaryAlgo:
         closest_y = ay + t * dy
 
         return math.hypot(px - closest_x, py - closest_y)
-        

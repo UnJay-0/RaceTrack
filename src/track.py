@@ -338,7 +338,7 @@ class Corner:
         best_dist = -1.0
 
         for i, a in enumerate(self.positions):
-            for b in self.positions[i + 1:]:
+            for b in self.positions[i + 1 :]:
                 d = a.get_distance_to(b)
                 if d > best_dist:
                     best_dist = d
@@ -556,7 +556,7 @@ class Position:
 
     def __hash__(self) -> int:
         return hash((self.x, self.y))
-    
+
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, Position):
             return NotImplemented
