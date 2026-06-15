@@ -17,7 +17,7 @@ from src.vector import Vector
 #   "corner_shortcut"
 #   "corner_shortcut_skipblobs"
 
-IMPROVEMENT_MODE = "corner"
+IMPROVEMENT_MODE = "corner_shortcut"
 
 class SegmentDecompose:
     def __init__(
