@@ -12,6 +12,12 @@ from src.track import (
 )
 from src.vector import Vector
 
+# Modes:
+#   "corner"
+#   "corner_shortcut"
+#   "corner_shortcut_skipblobs"
+
+IMPROVEMENT_MODE = "corner"
 
 class SegmentDecompose:
     def __init__(
@@ -26,14 +32,47 @@ class SegmentDecompose:
         )
 
     def improve(self, path: States) -> States | None:
+
+        corner_candidate = self._run_corner_repair(path)
+
+        if IMPROVEMENT_MODE == "corner":
+            return corner_candidate
+
+        if IMPROVEMENT_MODE == "corner_shortcut":
+            construction_cleanup = self._shortcut_path(path)
+
+            if corner_candidate is None:
+                return construction_cleanup
+
+            candidate_cleanup = self._shortcut_path(corner_candidate)
+
+            if len(candidate_cleanup) <= len(construction_cleanup):
+                return candidate_cleanup
+
+            return construction_cleanup
+
+        if IMPROVEMENT_MODE == "corner_shortcut_skipblobs":
+            construction_cleanup = self._skip_blobs_zigzags_loops(path)
+
+            if corner_candidate is None:
+                return construction_cleanup
+
+            candidate_cleanup = self._skip_blobs_zigzags_loops(corner_candidate)
+
+            if len(candidate_cleanup) <= len(construction_cleanup):
+                return candidate_cleanup
+
+            return construction_cleanup
+
+        raise ValueError(f"Unknown improvement mode: {IMPROVEMENT_MODE}")
+
+
+    def _run_corner_repair(self, path: States) -> States | None:
+    
         path_positions = path.get_positions()
         relevant_corners = [
             corner for corner in self.corners if corner.is_relevant(path_positions)
         ]
-
-        # Safe fallback: even if line/corner mutation fails, return a cleaned
-        # construction path instead of None.
-        construction_cleanup = self._skip_blobs_zigzags_loops(path)
 
         is_line_sector = True
         solution_paths: list[States] = [States([path[0]])]
@@ -53,7 +92,7 @@ class SegmentDecompose:
                         solution_paths = self._repair_line(solution_paths, gate)
 
                         if not solution_paths:
-                            return construction_cleanup
+                            return None
 
                         is_line_sector = False
 
@@ -65,22 +104,16 @@ class SegmentDecompose:
                         )
 
                         if not solution_paths:
-                            return construction_cleanup
+                            return None
 
                         is_line_sector = True
 
         solution_paths = self._repair_to_finish(solution_paths)
 
         if not solution_paths:
-            return construction_cleanup
+            return None
 
-        best = self._select_best(solution_paths)
-        best = self._skip_blobs_zigzags_loops(best)
-
-        if len(best) <= len(construction_cleanup):
-            return best
-
-        return construction_cleanup
+        return self._select_best(solution_paths)
 
     def _repair_line(self, paths_to_repair: list[States], gate, n=7):
         # print("#" * 50 + " repair LINE " + "#" * 50)
