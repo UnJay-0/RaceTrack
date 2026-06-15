@@ -31,7 +31,7 @@ RESULTS_CSV = BENCHMARK_DIR / "benchmark_g_construction_results.csv"
 SUMMARY_CSV = BENCHMARK_DIR / "benchmark_g_construction_summary.csv"
 
 CONSTRUCTION_TYPE = "g"
-RUNS_PER_TRACK = 10
+RUNS_PER_TRACK = 3
 SOLVER_TIMEOUT_SEC = 180
 VISUALISE_TIMEOUT_SEC = 60
 PDFLATEX_TIMEOUT_SEC = 60
@@ -606,7 +606,7 @@ def main() -> int:
         if track_file.name == "track_0circular.t":
             print(f"Skipping {track_file.name}")
             continue
-        
+
         track_dir = SOLUTIONS_DIR / track_file.stem
         for run_idx in range(1, RUNS_PER_TRACK + 1):
             run_dir = track_dir / f"run{run_idx:02d}"

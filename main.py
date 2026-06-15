@@ -3,7 +3,7 @@ from pathlib import Path
 
 from src.construction.rdasw import Rdasw
 from src.construction.rdgreedy import RdGreedy
-from src.improvement.segment_decompose import SegmentDecompose
+# from src.improvement.segment_decompose import SegmentDecompose
 from src.state import States
 from src.track import Track
 
@@ -58,33 +58,33 @@ if __name__ == "__main__":
     output_filename = Path(track_file).name.replace(".t", "_trip.csv")
     write_csv(track, path, output_filename, construction_type)
 
-    improvement_status = "not_run"
-    improved_path = None
+    # improvement_status = "not_run"
+    # improved_path = None
 
-    try:
-        improver = SegmentDecompose(track, corner_grouping_threshold=4, gate_length=2)
-        candidate = improver.improve(path)
+    # try:
+    #     improver = SegmentDecompose(track, corner_grouping_threshold=4, gate_length=2)
+    #     candidate = improver.improve(path)
 
-        if candidate is None:
-            improvement_status = "fallback_construction_none"
-            improved_path = path
-        elif len(candidate) <= len(path):
-            improvement_status = (
-                "improved" if len(candidate) < len(path) else "unchanged"
-            )
-            improved_path = candidate
-        else:
-            improvement_status = "fallback_construction_worse_candidate"
-            improved_path = path
+    #     if candidate is None:
+    #         improvement_status = "fallback_construction_none"
+    #         improved_path = path
+    #     elif len(candidate) <= len(path):
+    #         improvement_status = (
+    #             "improved" if len(candidate) < len(path) else "unchanged"
+    #         )
+    #         improved_path = candidate
+    #     else:
+    #         improvement_status = "fallback_construction_worse_candidate"
+    #         improved_path = path
 
-    except Exception as exc:
-        improvement_status = f"fallback_construction_exception:{type(exc).__name__}"
-        improved_path = path
+    # except Exception as exc:
+    #     improvement_status = f"fallback_construction_exception:{type(exc).__name__}"
+    #     improved_path = path
 
-    write_csv(track, improved_path, output_filename, "improved")
+    # write_csv(track, improved_path, output_filename, "improved")
 
-    print("Construction path length:", len(path))
-    print("Construction moves:", len(path) - 1)
-    print("Improved path length:", len(improved_path))
-    print("Improved moves:", len(improved_path) - 1)
-    print("Improvement status:", improvement_status)
+    # print("Construction path length:", len(path))
+    # print("Construction moves:", len(path) - 1)
+    # print("Improved path length:", len(improved_path))
+    # print("Improved moves:", len(improved_path) - 1)
+    # print("Improvement status:", improvement_status)
