@@ -793,9 +793,9 @@ def main() -> int:
 
     for track_file in tracks:
 
-        # if track_file.name == "track_0circular.t":
-        #     print(f"Skipping {track_file.name}")
-        #     continue
+        if track_file.name == "track_0circular.t":
+            print(f"Skipping {track_file.name}")
+            continue
 
         track_dir = SOLUTIONS_DIR / track_file.stem
 

@@ -602,6 +602,11 @@ def main() -> int:
     rows: list[dict[str, Any]] = []
 
     for track_file in tracks:
+
+        if track_file.name == "track_0circular.t":
+            print(f"Skipping {track_file.name}")
+            continue
+        
         track_dir = SOLUTIONS_DIR / track_file.stem
         for run_idx in range(1, RUNS_PER_TRACK + 1):
             run_dir = track_dir / f"run{run_idx:02d}"
